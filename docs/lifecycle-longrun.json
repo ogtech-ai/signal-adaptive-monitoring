@@ -1,0 +1,634 @@
+{
+  "platform": "macOS-14.4-arm64-arm-64bit",
+  "cpu": "arm",
+  "python": "3.12.8",
+  "sklearn": "1.9.1",
+  "seed": 520,
+  "seconds": 104.263,
+  "tracemalloc_peak_mb": 2.6,
+  "tracemalloc_scope": "Python allocations; not total process RSS",
+  "processed_before_reset": 99968,
+  "sample_cap": 100000,
+  "bounded_maxima": {
+    "points": 1536,
+    "eligible": 1536,
+    "history": 24,
+    "models": 3,
+    "windows": 120,
+    "events": 60
+  },
+  "training_jobs": 38,
+  "promotions": 2,
+  "rejections": 36,
+  "jobs": [
+    {
+      "at": 2048,
+      "state": "rejected",
+      "active": "v1",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.8253275109170306,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u7559\u51fa\u5de5\u6cc1\u8b66\u5831\u7387 >12%",
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1638.43
+    },
+    {
+      "at": 3584,
+      "state": "promoted",
+      "active": "v2",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.004366812227074236,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [],
+      "duration_ms": 1591.42
+    },
+    {
+      "at": 4608,
+      "state": "rejected",
+      "active": "v2",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.030434782608695653,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 0.9978260869565218,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1370.56
+    },
+    {
+      "at": 6144,
+      "state": "rejected",
+      "active": "v2",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.07860262008733625,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1382.09
+    },
+    {
+      "at": 7168,
+      "state": "promoted",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.008771929824561403,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [],
+      "duration_ms": 1358.33
+    },
+    {
+      "at": 10752,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.007462686567164179,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1276.77
+    },
+    {
+      "at": 12288,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.039301310043668124,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1246.4
+    },
+    {
+      "at": 14336,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.013100436681222707,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 0.9989082969432315,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1346.06
+    },
+    {
+      "at": 15360,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.008733624454148471,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1295.94
+    },
+    {
+      "at": 21504,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.0196078431372549,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1487.5
+    },
+    {
+      "at": 24576,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.008733624454148471,
+        "anchor_alert_rate": 0.0625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1577.15
+    },
+    {
+      "at": 25600,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.026200873362445413,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1297.63
+    },
+    {
+      "at": 31232,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.008620689655172414,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1514.34
+    },
+    {
+      "at": 32256,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.03056768558951965,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1716.57
+    },
+    {
+      "at": 34816,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.013100436681222707,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 0.9978165938864629,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1673.55
+    },
+    {
+      "at": 35840,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.026200873362445413,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1423.82
+    },
+    {
+      "at": 41472,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.05172413793103448,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 0.9978448275862069,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1661.44
+    },
+    {
+      "at": 42496,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.039301310043668124,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1530.12
+    },
+    {
+      "at": 45056,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.021834061135371178,
+        "anchor_alert_rate": 0.0625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1850.29
+    },
+    {
+      "at": 46080,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.017467248908296942,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2290.8
+    },
+    {
+      "at": 51712,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.017241379310344827,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 0.9978448275862069,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2040.13
+    },
+    {
+      "at": 52736,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.004366812227074236,
+        "anchor_alert_rate": 0.0,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1878.62
+    },
+    {
+      "at": 55808,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.034934497816593885,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 0.9967248908296943,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1961.61
+    },
+    {
+      "at": 56832,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.004366812227074236,
+        "anchor_alert_rate": 0.0,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1680.5
+    },
+    {
+      "at": 61952,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.02586206896551724,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1886.85
+    },
+    {
+      "at": 62976,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.03056768558951965,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1893.63
+    },
+    {
+      "at": 65536,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.008733624454148471,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2375.48
+    },
+    {
+      "at": 66560,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.017467248908296942,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1585.76
+    },
+    {
+      "at": 72704,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.0392156862745098,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2851.12
+    },
+    {
+      "at": 75776,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.021834061135371178,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 0.9989082969432315,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2812.31
+    },
+    {
+      "at": 76800,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.013100436681222707,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 5573.7
+    },
+    {
+      "at": 82432,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.017241379310344827,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 3606.49
+    },
+    {
+      "at": 83456,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.03056768558951965,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 2013.54
+    },
+    {
+      "at": 86528,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.06550218340611354,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 0.9934497816593887,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1808.06
+    },
+    {
+      "at": 87552,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.043668122270742356,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1496.44
+    },
+    {
+      "at": 93184,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.019736842105263157,
+        "anchor_alert_rate": 0.046875,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1421.63
+    },
+    {
+      "at": 96256,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.013100436681222707,
+        "anchor_alert_rate": 0.03125,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1392.93
+    },
+    {
+      "at": 97280,
+      "state": "rejected",
+      "active": "v3",
+      "winner": "Covariance",
+      "test": {
+        "current_alert_rate": 0.021834061135371178,
+        "anchor_alert_rate": 0.015625,
+        "synthetic_recall": 1.0,
+        "unsafe_drift_recall": 1.0
+      },
+      "reasons": [
+        "\u8f03 active \u7684\u5de5\u6cc1\u8b66\u5831\u7387\u6539\u5584\u672a\u9054 5 \u500b\u767e\u5206\u9ede"
+      ],
+      "duration_ms": 1876.91
+    }
+  ],
+  "rollback": true,
+  "post_cap_advance_12_times": true,
+  "reset_12_times": true,
+  "scope": "Mac native CPU; entirely synthetic; not G520/Linux/device performance"
+}

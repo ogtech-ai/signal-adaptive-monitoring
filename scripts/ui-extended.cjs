@@ -1,2 +1,2 @@
-// The consolidated suite covers UCI, temporal controls, export and 3 viewports.
-require("./ui-test.cjs");
+// Current continuous-monitoring UI supersedes the earlier manual replay workflow.
+require('./ui-lifecycle.cjs');

@@ -1,44 +1,44 @@
 [
   {
-    "selector": "#preview-badge",
+    "selector": "#stream-state",
     "font": 12,
-    "ratio": 6.15,
-    "foreground": "rgb(69, 91, 118)",
-    "background": "rgb(237, 241, 247)"
+    "ratio": 5.54,
+    "foreground": "rgb(23, 109, 93)",
+    "background": "rgb(232, 245, 239)"
   },
   {
-    "selector": "#calibration-state",
+    "selector": "#training-state",
     "font": 12,
-    "ratio": 6.15,
-    "foreground": "rgb(69, 91, 118)",
-    "background": "rgb(237, 241, 247)"
+    "ratio": 5.18,
+    "foreground": "rgb(82, 103, 128)",
+    "background": "rgb(239, 242, 247)"
   },
   {
     "selector": ".chart-legend",
     "font": 12,
-    "ratio": 5.53,
-    "foreground": "rgb(87, 106, 132)",
+    "ratio": 4.84,
+    "foreground": "rgb(94, 115, 145)",
     "background": "rgb(255, 255, 255)"
   },
   {
-    "selector": "#coverage-count",
-    "font": 12,
-    "ratio": 6.02,
-    "foreground": "rgb(83, 100, 125)",
-    "background": "rgb(255, 255, 255)"
-  },
-  {
-    "selector": ".interpretation",
+    "selector": "#gate-reason",
     "font": 13,
-    "ratio": 6.02,
-    "foreground": "rgb(83, 100, 125)",
+    "ratio": 5.11,
+    "foreground": "rgb(83, 107, 136)",
+    "background": "rgb(244, 247, 252)"
+  },
+  {
+    "selector": ".body-copy",
+    "font": 13,
+    "ratio": 5.49,
+    "foreground": "rgb(83, 107, 136)",
     "background": "rgb(255, 255, 255)"
   },
   {
-    "selector": ".events-panel th",
+    "selector": ".candidate-panel th",
     "font": 12,
-    "ratio": 5.72,
-    "foreground": "rgb(82, 100, 125)",
-    "background": "rgb(247, 249, 251)"
+    "ratio": 5.36,
+    "foreground": "rgb(82, 105, 132)",
+    "background": "rgb(247, 249, 252)"
   }
 ]

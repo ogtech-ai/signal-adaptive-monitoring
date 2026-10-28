@@ -9,9 +9,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   });
   let p = await b.newPage({ viewport: { width: 390, height: 844 } });
   await p.goto(process.env.DEMO_URL || "http://127.0.0.1:8011");
-  await p.waitForFunction(() =>
-    document.querySelector("#status").textContent.includes("資料已就緒"),
-  );
+  await p.waitForFunction(() => !document.querySelector("#play").disabled);
   const result = await p.evaluate(() => {
     const lum = (c) => {
       const x = c
@@ -25,12 +23,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       return x[0] * 0.2126 + x[1] * 0.7152 + x[2] * 0.0722;
     };
     return [
-      "#preview-badge",
-      "#calibration-state",
+      "#stream-state",
+      "#training-state",
       ".chart-legend",
-      "#coverage-count",
-      ".interpretation",
-      ".events-panel th",
+      "#gate-reason",
+      ".body-copy",
+      ".candidate-panel th",
     ].map((selector) => {
       let el = document.querySelector(selector),
         css = getComputedStyle(el),

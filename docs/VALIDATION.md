@@ -1,43 +1,33 @@
-# 驗證紀錄
+# Recorder MLOps 驗證
 
-本輪為單頁 UI 改版，分析核心未變。Python 3.12.8 / macOS 14.4 arm64 / scikit-learn 1.9.1；不是 Linux 或 Genio 520 性能驗證。
+目前工作流為全合成持續監測與最小模型生命週期，取代先前手動注入主導的畫面。Mac 原生 CPU、Python 3.12.8、scikit-learn 1.9.1；未在 Linux、實體記錄器或 G520 驗證。
 
-## 核心與介面
+## 核心測試
 
-- pytest：6 passed，1 個上游 Starlette/httpx 棄用警告。覆蓋先評分後更新、凍結/回退、無標籤介面、未核准/異常/缺值不更新、因果與不可變基準、資料驗證、API 重現。
-- Headless Chrome 1440×1000、768×1000、390×1000：UCI 來源、參考核准、建模、播放/暫停/50×/逐筆、三種合成注入、受控校正、凍結/回退、事件聚合/篩選/鍵盤定位、切換量綱、匯出、重設、來源改變、參考改變失效處理均通過。各尺寸無 pageerror、無橫向溢位。
-- 額外邊界流程：CSV 匯入、未知時間標示、參考缺值錯誤、舊模型清除、hover 數值、分析時禁用動作、來源切換取消過期請求均通過。
-- 最終視覺狀態以 UCI 第 580 筆、參考 [0,180)、第 250 筆核准/解除凍結、尖峰 @400、漂移 @460–549、缺值 @550–559 呈現。三尺寸沒有外部字型/CDN/圖片請求。已人工檢視桌機與手機完整畫面。
-- 新版圖表呈現固定 ±4 MAD、真實單位/時間、合成區間、連續警報區段與當前校正版本/偏移。未建模明示為預覽與空態，沒有假的分析分數。
+14 tests passed（1 個上游 Starlette/httpx 棄用警告）。包含原 UCI/MAD 回放相容測試，以及：
 
-重現腳本為 scripts/ui-test.cjs 與 scripts/ui-edgecases.cjs；完整結果見 ui-qa.json、ui-edge-qa.json、ui-visual-qa.json。Playwright 與 Chrome 為另裝測試工具，執行產品無 Node/打包步驟。
+- index-seeded 訊號跨批次相同；模板/尺度/模型 fit 不使用留出資料。
+- 最新資料按時間拆 fit／calibration／selection／test，索引不交疊；更改全部顯示標記不改變收集資料、候選或評分。
+- 當窗先評分，promotion 只影響啟用位置之後的資料，舊分數不回寫；初始尺度與參考不可變。
+- 真實候選 fit、驗收與 promotion；合成與大偏移挑戰門檻保留。
+- 凍結阻止 promotion；reset／rollback 使舊背景工作失效；超過 12 窗的過期 job 不啟用。
+- 重複 revision 不重複消耗資料；API 長批次被拒絕；關閉 session 可釋放且冪等；最多 8 session。
+- 直方圖樣本數守恆、最小樣本門檻、cooldown、回退與初始重設。
 
-## 原始 CPU 與資料驗證範圍
+## 長循環
 
-CPU benchmark 保留於 benchmark.json：每來源 1440 筆、參考 [0,180)、後續 1260 筆，當時 Mac 原生分析約 2.8–2.9 秒。CPU 型號查詢受 sandbox 限制，僅回報 arm64。這輪不把既有秒數當作新硬體或 UI 效能測量。
+見 lifecycle-longrun.json。以真實 CPU 模型跑到本次 100,000 筆上限之前的最後完整窗口 99,968 筆；檢查每批資料與模型緩衝上限、真實 promotion／rejection、回退、上限後 12 次 advance 與 12 次 reset。
 
-合成訊號的尖峰固定/校正覆蓋 100%、ML 0%；漂移固定約 57.8%、校正約 55.6%、ML 約 1.1%。缺值由品質警報抓到，不是 ML 缺值診斷能力。這些結果不支持「ML 一定更好」或「校正一定改善」。
+訊號/合格樣本各最多 1,536、趨勢 120 窗、警示 60 窗、歷程 24 次、模型最多 6 版；此 seed 實際保存模型最多 3 版。報告內 tracemalloc 是 Python allocations 峰值，不是總 RSS，開啟 tracemalloc 與並行 UI QA 的牆鐘時間也不代表部署效能。
 
-UCI 的 benchmark 中有 974 個未注入筆次觸發任一警報。原資料無故障真值，不能稱為 false positive；短參考區間跨日常負載工況有限制。注入區段高覆蓋不證明由注入造成，因未扣除原本就會警報的樣本。
+## 桌機與手機
 
-官方 UCI 下載與快取切片成功；archive SHA256、作者、CC BY 4.0、修改見 data/ATTRIBUTION.md。
+Headless Chrome 1440×1000 / 390×1000 實際流程：自動流入、暫停/逐窗/加速、三候選、真實 promotion與拒絕、超界阻擋、初始位移保留、回退/凍結、鍵盤、次要手動測試、連點重設。沒有 pageerror 或整頁橫向溢位。詳見 lifecycle-ui-qa.json；小尺寸資料表使用有焦點的局部捲動，不把表格擠成無法閱讀的 tiny text。
 
-## 容器與發布
+重要狀態、圖例、門檻與表頭為 12–13px，指定文字實測對比至少 4.5:1，細節見 ui-readability-qa.json；非完整無障礙認證。
 
-29 個精確鎖定依賴的 Linux amd64 wheels 已確認可下載，見 linux-amd64-dependencies.json；這不是 Linux 執行證明。Docker context 已加入新版靜態 CSS 的精確白名單。
+## 指標邊界與未測項
 
-本輪未執行 Docker build/run、遠端部署、服務/路由變更或 Mac Docker 清理；此前 socket 拒絕未重試或繞過。實體記錄器與 G520 未測。搬遷待授權者依 MIGRATION.md 在指定主機盤點與驗證。
+「工況警報率」不是已知真實 false positive；「合成挑戰覆蓋」不是設備診斷準確率。初始參考為程序設計的無異常週期/噪音段；大偏移與舊參考驗收亦為明確模擬。合格門檻不能保證真實未知異常全被排除，故保留初始分布、固定警示與不可變超界策略。
 
-先前已保存的無聲操作影片對應舊版介面；本輪交付新版完整截圖與操作 QA，未覆寫 Drive 影片或公開服務。
-
-## 首次使用與可讀性修正驗收
-
-390×844、mobile + touch emulation 首次直接展開設定，核准框與建立按鈕可見。實際 Tab 順序為品牌 → 設定 summary → 來源 → CSV summary → 起點 → 終點 → 核准；Space 核准、Tab/Enter 建模後焦點回到播放。鍵盤可播放/暫停、逐筆與切換速度。
-
-連續 Enter 建模只產生 1 個 API 請求；20 次尖峰連點只產生 1 個請求。從匯出資料與原始 UCI 逐欄比較，功率確實只 +2 kW、電流只 +8.7 A。手機動作旁的結果摘要距情境按鈕約 49px，且可定位到完整比較並移動焦點。校正控制旁也有目前 MAD 分數。
-
-重要 badge、圖例、覆蓋統計與事件單位字級至少 12px；判讀限制為 13px。事件偏離分數明示固定/校正 · MAD，量測 kW/A 與分數分開。凍結、回退、鍵盤事件定位通過。重複重設 12 次不產生分析請求，清除事件/核准/摘要，回到展開的設定與核准焦點。
-
-完整證據見 ui-mobile-first-qa.json；來源 ZIP 上傳此前遭拒，本輪沒有重試或另詢授權，來源包僅保留本機。沒有部署或路由修改。
-
-實測 computed styles 對比：重要狀態 badge 6.15:1、圖例 5.53:1、覆蓋筆次與判讀文字 6.02:1、事件表頭 5.72:1；這些文字至少 12px，判讀文字 13px。重現腳本 ui-readability.cjs，詳細結果 ui-readability-qa.json。此為指定文字的實測，非完整無障礙認證。
+Docker、Linux/G520 效能、真實記錄器接入與遠端部署本輪未跑。29 個鎖定依賴 Linux amd64 wheel 可取得。未呼叫付費 API 或製造假的訓練動畫。

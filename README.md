@@ -1,14 +1,14 @@
-# Signal Adaptive Monitoring
+# Signal · Continuous monitoring & model lifecycle
 
 modality=`signal` · application=`adaptive monitoring / PdM demonstration`
 
-繁體中文、CPU 可跑的單頁時序監測工作區。以 UCI 真實公開資料回放與明確合成事件，體驗「資料 → 參考基準 → 異常提醒 → 受控校正」。可用於電力、製造、環控與設備監測的售前驗證，不暗示商業客戶關係，也不宣稱已接記錄器或能診斷真實故障。
+精緻單頁 CPU 模擬工作區：**持續訊號 → 分布漂移 → 條件觸發候選 fit → 時間切分驗收 → promotion／rollback**。手動注入為次要測試，主要情境會自動發生。不需登入、付費 API 或大型 MLOps 平台。
 
-![監測工作區](docs/ui-1440.png)
+這是完全合成的 20Hz、seed 520 三通道訊號，不是記錄器連線、不是 G520 性能實測，也不是故障診斷。收集與漂移觸發重新 fit **不是 TTT，亦不是從舊權重 transfer learning**。
 
-## 本機執行
+## 執行
 
-Python 3.12，建議 2 CPU / 1 GB RAM（部署建議，非硬體保證）。不需 GPU、API key、遠端模型或外部字型／CDN。
+Python 3.12，CPU-only。建議起點 2 CPU / 1 GB RAM，非目標硬體保證。
 
 ```sh
 python3 -m venv .venv
@@ -16,61 +16,51 @@ python3 -m venv .venv
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011
 ```
 
-開啟 http://127.0.0.1:8011 。此為本機網址，不能當作客戶可從外網開啟的網址。不要占用其他專案的 8000 埠。
+開啟 http://127.0.0.1:8011 。這是本機網址，不是對外體驗網址。介面不依賴外部字型、CDN 或遠端模型。程式與公開樣本可包成容器；未在此輪執行 Docker 或遠端部署。
 
-## 操作流程
+## 三分鐘體驗
 
-1. **資料與參考基準**：預設載入 UCI 公開用電資料；也可選離線合成訊號，或匯入單一設備 CSV。檢查參考區間，核准展示工況後建立基準。這是操作員的參考選擇，不代表資料具有健康真值。首次在桌機與手機均直接展開設定，可核准後建立；建模後設定列才收合。
-2. **訊號回放**：播放／暫停、10×／50× 快轉、逐筆或拖曳時間軸。圖表顯示目前及前 239 筆，可切換功率／電壓／電流。滑過圖表檢視真實數值；固定基準 ±4 MAD 為統計門檻，不是物理安全界線。
-3. **測試變化**：從游標注入單點同步尖峰（功率 +2 kW、電流 +8.7 A）、90 筆漂移或 10 筆缺值。amber 曲線／區帶與事件列標明「合成」，不冒充來源量測或已知設備故障。
-4. **受控校正**：核准後續工況、解除凍結，再觀察固定／校正分數。只接受不缺值、相對固定與校正中心均 <3 MAD 的樣本；固定基準、尺度與 ML 不變。凍結停止後續更新；回退撤銷上一個中心更新並凍結。操作記在游標時間點，修改過去會重播該實驗的控制時間軸。
-5. **事件與匯出**：連續警報聚合為區間，可篩選合成／背景事件，點選或按 Enter 定位圖表。匯出 JSON 包含資料、合成標記、控制時間軸、模型參數、版本與種子，可重建實驗；匯出明示完整資料重播結尾模型與目前游標版本的不同範圍。清除實驗保留來源資料並清空模型、事件與核准；切換來源或修改參考區間也須重新核准。
+1. 開啟後自動建立初始參考 v1，並逐窗收集。每窗 128 筆，代表 6.4 秒模擬訊號；每秒送 1 或 4 窗是加速播放，不是宣稱牆鐘即時取樣。可暫停、逐窗、切換 kW／V／A。
+2. 選 4 窗／秒，觀察自動尖峰、缺值、工況漂移。右側展示合格樣本、持續漂移、冷卻時間及阻擋理由；不滿足條件不訓練。
+3. 候選表呈現實際 fit 耗時與選模指標。第一次過渡中的候選可能被拒絕，分布穩定後才可能啟用 v2；結果由真實計算決定，不以動畫假裝訓練。
+4. 看直方圖及漂移曲線：cobalt 為相對 active 參考的位移，灰線為相對不可變初始參考，虛線為觸發門檻。初始基準警示獨立保留，避免新模型警報減少就隱藏偏移。
+5. 查看版本日期／資料窗／方法／指標。一鍵回退上一個保存模型會凍結自動訓練；串流與固定安全邊界繼續。也可手動凍結再訓練、匯出有界資料與 metadata，或重設實驗。
 
-原始 UCI 資料沒有故障真值，背景警報不能稱為真實 false positive。合成區間警報覆蓋包含原本就會警報的筆次與缺值品質提示，不能歸因為注入偵測成功；警報減少不代表改善。詳細分模型結果見 [CPU 實測](docs/benchmark.json)。
+## 真實方法與驗收
 
-## 真實方法與適配邊界
+- 訊號為固定週期＋index-seeded random noise，分批大小不改變樣本。每 2,048 筆切換一個模擬工況，前 384 筆漸變；另有稀疏尖峰與缺值。顯示標記與偵測結果分開，標記不進 fit 或資格門檻。
+- 初始 512 筆：前 256 筆估計固定 64 點週期模板、MAD 尺度並 fit IF64；256–383 校準；384–447 保留選模錨點；448–511 保留最終錨點。前處理不讀留出資料。
+- 當窗先以當時 active 評分，再計算分布、收集合格樣本，最後才觸發 job。全窗完成後才整理供未來模型使用；不回寫歷史分數。
+- 漂移指標為三通道最大 `|目前中位數 - active 參考中位數| / 初始 MAD 穩健尺度`，門檻 1.5，需連續 3 窗；至少 768 個近期合格樣本、8 窗 cooldown，且當窗合格率至少 60%。未變分布的拒絕結果會抑制立即重試。
+- 核准模擬邊界是去週期殘差功率 ±0.28 kW、電流 ±1.4 A、電壓 ±4 V；缺值、超界與窗口離群不納入訓練。這是示範策略，不能保證真實未知異常全被排除，不是通用設備安全規格。
+- 三個有限候選：IsolationForest 48/96 棵、ShrunkCovariance。皆重新 fit；近期合格資料按時間 50% fit／20% 校準／15% 選模／15% 最終測試，另混入固定早期參考 256 筆 rehearsal，保留舊參考測試以免遺忘。
+- 選模目標使用工況警報率、舊參考警報率與合成挑戰漏報；選出一個後才使用最終測試驗收。要求工況／錨點警報各 ≤12%、合成挑戰覆蓋 ≥92%、大偏移保留 ≥90%，且相對 active 工況警報改善 ≥5 個百分點。未過就保留 active。**改善不是只看警報減少。**
+- 異常驗收為明確合成的正負尖峰、偏移與電流不一致 probes，缺值另外做品質警報。這些覆蓋率不是設備診斷準確率。合成驗收資料不進 fit 或 calibration。
+- 訓練在有界 CPU worker 真正執行，顯示 queued／training／完成／拒絕及實際 UTC 時間與毫秒，不加假的延遲或進度。
 
-- **固定基準**：NumPy median / MAD，多通道最大標準化偏差；閾值 4。缺值填不可變參考中位數，另外觸發品質警報並禁止更新，不使用未來插值。
-- **ML**：scikit-learn IsolationForest，64 棵樹、單執行緒、seed 520。依時間以前 70% 參考資料訓練，後 30% 校準分數 98% 分位門檻；無故障標籤。ML 警報呈現在事件欄位，主比較圖聚焦固定／校正 MAD 與長期偏移。
-- **受控基準校正**：中心以 0.025 步長更新，必須明確核准並通過不可變基準門檻；逐筆先評分再更新。這**不是 TTT，也不是 AutoML**，沒有自監督梯度訓練。長期偏移保留與不可變基準的距離。
-- **資料介面**：`app.core.validate`、`/api/data` 與 CSV 匯入。CSV 欄位為 `power_kw,voltage_v,current_a`，80–20,000 筆；空白為缺值，依列順序，操作員需確認單一設備與時間順序。沒有時間欄時不杜撰取樣率或時間戳。來源切換重新建模，未做跨設備效能驗證。
-- **重現**：匯出包含實作版本、scikit-learn/Python 版本、參考雜湊、基準、尺度、ML 門檻與種子；ML 可依參考資料重建，不輸出不安全的 pickle。每次 API 計算獨立，不儲存使用者 CSV 或 session。
+## 最小 MLOps 邊界
 
-## 合法資料與開源重用
+模型、資料窗與 SHA、方法、驗收、啟用位置及回退歷程保存在工作階段記憶體。最多保存 1,536 訊號點、1,536 合格樣本、120 窗趨勢、60 警示窗、24 次歷程、6 個模型。本次資料到 100,000 筆上限前的完整窗口停止。最多 8 個工作階段，30 分鐘未取用可釋放，關頁亦會釋放。
 
-內附 UCI 235 前 1,440 筆、一分鐘、三通道切片。作者 Georges Hebrail、Alice Berard，CC BY 4.0；[來源、授權、修改與 SHA256](data/ATTRIBUTION.md)。原資料是家庭用電，不是高速工業電流或故障資料。合成來源固定 seed 520。
+HTTP revision 防護拒絕重複／過期動作；reset／rollback 會使舊背景工作結果失效。fit 期間凍結會阻止 promotion。輸出是 seed／策略／有界樣本／metadata，不是 pickle 或永久模型 registry；重設會清空工作階段。相同 seed 的訊號可重現；異步啟用時點另記在版本 metadata，不把 CPU 排程時間當成 deterministic。
 
-```sh
-# 可選：下載官方 archive（快取不重抓，驗證 SHA256 後產生切片）
-.venv/bin/python scripts/download_uci.py
-```
-
-程式為 MIT；資料與上游授權各自保留。[scikit-learn](https://github.com/scikit-learn/scikit-learn) / [NumPy](https://github.com/numpy/numpy) / [Uvicorn](https://github.com/encode/uvicorn) 為 BSD 3-Clause；[FastAPI](https://github.com/fastapi/fastapi) 為 MIT。本 repo 不含客戶私有資料、金鑰、私有模型或原始提案。
-
-## 測試與畫面
+## 測試與驗證
 
 ```sh
 .venv/bin/python -m pytest -q
-.venv/bin/python -m scripts.benchmark
-# 另安裝 Playwright；使用已安裝 Chrome，先啟動 API
-PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-test.cjs
-PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-edgecases.cjs
-PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-mobile-first.cjs
-PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-readability.cjs
+.venv/bin/python -m scripts.validate_lifecycle
+# 另安裝 Playwright 並提供 Chrome，先啟動 API
+PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-lifecycle.cjs
 ```
 
-可用 `DEMO_URL`、`CHROME_PATH`、`QA_OUTPUT` 指定本機測試目標、Chrome 與輸出目錄。UI 測試涵蓋 1440／768／390px 全流程；另驗 CSV、錯誤空態、hover、分析時禁用控制及來源切換取消過期回應。核心測試涵蓋凍結／回退、先評分後更新、無標籤介面、缺值與異常不更新、未來資料不影響過去、不可變基準、資料驗證及 API 重現。
+[長循環紀錄](docs/lifecycle-longrun.json) 包含 CPU/OS/版本與覆蓋範圍：Mac 原生處理 99,968 筆後停止，完成真實 promotion／rejection、回退、重複重設與容量上限檢查。tracemalloc 只代表 Python allocations，**不是總 RSS 或 G520／Linux 性能**。完整說明見 [驗證紀錄](docs/VALIDATION.md)。
 
-[完整驗證紀錄](docs/VALIDATION.md) · [互動設計](docs/UI-REDESIGN.md) · [手機畫面](docs/ui-390.png)
+## 資料與可重用適配器
 
-## 部署與搬遷
+本模式完全合成。原 UCI 235 CC BY 4.0 小切片、下載快取腳本、`/api/data`、原 `/api/run` median/MAD + IF 回放適配器保留供研究與後續整合，沒有把 UCI 家庭資料冒充此 20Hz 訊號或其故障真值。[UCI 作者／來源／修改／授權](data/ATTRIBUTION.md)。未連接實體記錄器；新設備取樣率、通道、頻寬、SDK 尚待提供。
 
-已準備 Dockerfile、Compose 與 Linux amd64 覆寫。Docker context 為執行檔白名單，不攜帶 `.venv`、秘密、快取或影片。29 個鎖定依賴的 Linux amd64 wheels 已確認可取得，但本輪未驗證容器 build/run，不把 Mac CPU 結果當作 Linux 或 Genio 520 效能。
+程式 MIT；[scikit-learn](https://github.com/scikit-learn/scikit-learn)、[NumPy](https://github.com/numpy/numpy)、[Uvicorn](https://github.com/encode/uvicorn) 為 BSD 3-Clause，[FastAPI](https://github.com/fastapi/fastapi) 為 MIT。沒有私有客戶資料、金鑰、付費 API 或大型權重。
 
-```sh
-python3 scripts/package_migration.py
-# 僅在核准主機完成盤點後執行；本機 loopback 綁定 8011
-# docker compose -f compose.yaml -f compose.linux-amd64.yaml up --build -d
-```
+## 搬遷
 
-[Linux 搬遷與驗證清單](docs/MIGRATION.md)。沒有宣告資料 volume；API 無伺服端持久 session。對外服務應由核准反向代理／TLS／存取控制提供網址，不自動改 IAM、防火牆、SSH key 或路由。手動 workflow_dispatch preflight 只驗證識別字，不部署或購買資源。未部署 G520；新記錄器通道、取樣率、頻寬與 SDK 仍需確認。TypeSafe（Jev）僅為未來外部決策候選，沒有呼叫付費 API 或宣稱可下載權重。
+`python3 scripts/package_migration.py` 產生不含 `.venv`、快取、秘密、影片的本機來源包。Docker context 只允許 runtime 檔案，新增 lifecycle.py 已列入。29 個既有依賴的 Linux amd64 wheels 可取得，但容器／指定主機仍由部署端獨立驗證。只使用核准主機既有 loopback 與反向代理，不自行變更路由、IAM、防火牆或 Docker 權限。

@@ -1,0 +1,36 @@
+[
+  {
+    "width": 1440,
+    "errors": [],
+    "overflow": false,
+    "automaticStream": true,
+    "threeCandidates": true,
+    "realPromotionAndRejection": true,
+    "unsafeBoundaryBlocks": true,
+    "immutableDriftVisible": true,
+    "rollback": true,
+    "keyboard": true,
+    "manualSecondary": true,
+    "repeatedReset20": true,
+    "versionsBeforeRollback": 3,
+    "trainingJobs": 5,
+    "totalBeforeReset": 7936
+  },
+  {
+    "width": 390,
+    "errors": [],
+    "overflow": false,
+    "automaticStream": true,
+    "threeCandidates": true,
+    "realPromotionAndRejection": true,
+    "unsafeBoundaryBlocks": true,
+    "immutableDriftVisible": true,
+    "rollback": true,
+    "keyboard": true,
+    "manualSecondary": true,
+    "repeatedReset20": true,
+    "versionsBeforeRollback": 3,
+    "trainingJobs": 5,
+    "totalBeforeReset": 7936
+  }
+]

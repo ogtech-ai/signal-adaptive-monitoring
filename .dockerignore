@@ -6,6 +6,7 @@
 !app/
 !app/main.py
 !app/core.py
+!app/lifecycle.py
 !app/static/
 !app/static/index.html
 !app/static/app.js

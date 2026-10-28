@@ -1,323 +1,157 @@
 "use strict";
-const $ = (id) => document.getElementById(id);
-const COLORS = {
-  signal: "#315cdb",
-  fixed: "#315cdb",
-  adaptive: "#0e9b8d",
-  ml: "#a38cbd",
-  shift: "#bd8951",
-  alert: "#da972e",
-  reference: "#edf2ff",
-  injection: "#fff0d2",
-  grid: "#e7ebf0",
-  text: "#7c8798",
+const $ = (id) => document.getElementById(id),
+  BLUE = "#315cdb",
+  AMBER = "#cb8a24",
+  GREY = "#91a1b9";
+const states = {
+  frozen: "訓練已凍結",
+  collecting: "收集樣本",
+  monitoring: "監測中",
+  queued: "排程中",
+  training: "訓練中",
+  promoted: "已啟用",
+  rejected: "候選拒絕",
+  cooldown: "冷卻中",
+  blocked: "邊界阻擋",
+  rolled_back: "已回退",
 };
-let original = [],
-  rows = [],
-  labels = {},
-  scores = [],
-  meta = {},
-  model = {},
-  cursor = 180,
-  selected = -1;
-let timer = null,
-  ready = false,
+let S = null,
   busy = false,
-  request = 0,
-  actions = [],
-  runAbort = null,
-  sourceRequest = 0,
-  lastInjection = null;
-const channels = [
-  { unit: "kW", name: "功率" },
-  { unit: "V", name: "電壓" },
-  { unit: "A", name: "電流" },
-];
-const escapeHTML = (value) =>
-  String(value).replace(
+  playing = true,
+  timer = null,
+  poller = null,
+  sessionId = null;
+const esc = (value) =>
+  String(value ?? "").replace(
     /[&<>"']/g,
     (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
         c
       ],
   );
-const end = () => Number($("end").value);
-function stateAt(i) {
-  let frozen = true,
-    approved = false;
-  for (const a of actions
-    .filter((a) => a.at <= i)
-    .sort((a, b) => a.at - b.at)) {
-    if ("frozen" in a) frozen = a.frozen;
-    if ("approved" in a) approved = a.approved;
-    if (a.rollback) frozen = true;
+const percent = (value) => (100 * (value ?? 0)).toFixed(1) + "%";
+const date = (value) =>
+  value ? value.replace("T", " ").slice(0, 19) + " UTC" : "—";
+const clock = (seconds) =>
+  `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+function status(text, error = false) {
+  $("status").textContent = text;
+  $("status").className = "status-message" + (error ? " error" : "");
+}
+function controls() {
+  for (const id of ["play", "step", "reset", "export", "auto-training"])
+    $(id).disabled = !S || busy;
+  $("rollback").disabled = !S || busy || !S.can_rollback;
+  if (S?.exhausted) {
+    $("play").disabled = true;
+    $("step").disabled = true;
   }
-  return { frozen, approved };
-}
-function status(message, kind = "info") {
-  $("status").textContent = message;
-  $("status").dataset.kind = kind;
-}
-function pause() {
-  clearInterval(timer);
-  timer = null;
-  $("play").innerHTML =
-    '<svg class="icon"><use href="#i-play"/></svg><span>播放</span>';
-  $("play").setAttribute("aria-label", "播放");
-}
-function setBusy(value) {
-  busy = value;
-  document
-    .querySelector(".monitor-grid")
-    .setAttribute("aria-busy", String(value));
-  updateControls();
-  drawNearbyResults();
-}
-function updateControls() {
-  $("setup-action").textContent = ready ? "調整設定" : "核准參考";
-  const phase = ready ? 3 : rows.length ? 2 : 1;
-  document.querySelectorAll(".workflow li").forEach((item, i) => {
-    item.className =
-      i + 1 < phase ? "complete" : i + 1 === phase ? "current" : "";
-    if (i + 1 === phase) item.setAttribute("aria-current", "step");
-    else item.removeAttribute("aria-current");
-  });
-  const state = stateAt(cursor);
-  $("build").disabled = busy || !rows.length;
-  $("build").querySelector("span").textContent = busy
-    ? "分析中…"
-    : ready
-      ? "重新建立基準"
-      : "建立參考基準";
-  for (const id of ["play", "step", "approve", "freeze", "rollback", "export"])
-    $(id).disabled = busy || !ready;
   document
     .querySelectorAll("[data-inject]")
-    .forEach((b) => (b.disabled = busy || !ready || cursor < end()));
-  $("seek").disabled = busy || !rows.length;
-  $("start").disabled = busy;
-  $("end").disabled = busy;
-  $("refok").disabled = busy;
-  $("reset").disabled = busy || !rows.length;
-  $("approve").checked = state.approved;
-  $("freeze").querySelector("span").textContent = state.frozen
-    ? "解除凍結"
-    : "凍結更新";
-  $("calibration-state").className =
-    "badge " +
-    (!ready || state.frozen ? "neutral" : state.approved ? "teal" : "amber");
-  $("calibration-state").innerHTML =
-    !ready || state.frozen
-      ? '<svg class="icon"><use href="#i-lock"/></svg>已凍結'
-      : state.approved
-        ? "受控校正中"
-        : "等待核准";
-  $("calibration-hint").textContent = !ready
-    ? "建立基準後可操作。所有評分先於更新。"
-    : state.frozen
-      ? "校正已停止；固定基準與 ML 始終保留。"
-      : state.approved
-        ? "先評分，再更新。超過 3 MAD 或缺值不更新。"
-        : "已解除凍結；核准後續工況才會更新。";
-  $("preview-badge").textContent = busy
-    ? "重新分析"
-    : !ready
-      ? "資料預覽"
-      : timer
-        ? "回放中"
-        : "已建立基準";
-  $("preview-badge").className = "badge " + (ready ? "teal" : "neutral");
+    .forEach((b) => (b.disabled = !S || busy));
+  $("play").textContent = playing ? "暫停串流" : "繼續監測";
+  $("stream-state").textContent = !S
+    ? "初始化"
+    : S.exhausted
+      ? "樣本上限"
+      : playing
+        ? "持續流入"
+        : "已暫停";
+  $("stream-state").className = "badge " + (playing ? "teal" : "neutral");
 }
-async function load() {
-  if ($("source").value === "csv") return;
-  $("source").querySelector("option[value=csv]")?.remove();
-  pause();
-  if (runAbort) runAbort.abort();
-  request++;
-  const id = ++sourceRequest;
-  ready = false;
-  setBusy(true);
-  status("正在讀取資料…");
-  try {
-    const response = await fetch("/api/data?source=" + $("source").value);
-    const data = await response.json();
-    if (!response.ok) throw Error(data.detail);
-    if (id !== sourceRequest) return;
-    original = data.rows;
-    meta = data;
-    $("start").value = 0;
-    $("end").value = Math.min(180, Math.floor(original.length * 0.4));
-    reset(false);
-    $("provenance").textContent =
-      (meta.device === "UCI-household-01"
-        ? "CC BY 4.0 · "
-        : meta.device === "synthetic-01"
-          ? "seed 520 · "
-          : "") +
-      original.length.toLocaleString() +
-      " 筆 · 1 分鐘 / 筆 · 三通道";
-    $("evidence-source").textContent = data.source + " · " + data.device;
-    $("setup").open = true;
-    status("資料已就緒。選擇並核准參考區間，開始建立基準。");
-  } catch (error) {
-    if (id === sourceRequest) {
-      original = [];
-      rows = [];
-      meta = {};
-      reset(false);
-      $("provenance").textContent = "此來源尚未載入";
-      $("evidence-source").textContent = "尚無有效資料";
-      status(error.message + "；可選合成來源進行離線測試。", "error");
-    }
-  } finally {
-    if (id === sourceRequest) setBusy(false);
-  }
-}
-function reset(showMessage = true) {
-  pause();
-  $("chart-tooltip").hidden = true;
-  request++;
-  if (runAbort) runAbort.abort();
-  rows = structuredClone(original);
-  labels = {};
-  lastInjection = null;
-  scores = [];
-  model = {};
-  ready = false;
-  actions = [];
-  selected = -1;
-  cursor = Math.min(rows.length - 1, Math.max(0, end()));
-  $("refok").checked = false;
-  $("approve").checked = false;
-  $("event-filter").value = "all";
-  $("seek").min = 0;
-  $("seek").max = Math.max(0, rows.length - 1);
-  $("seek").value = Math.max(0, cursor);
-  $("model").textContent = "尚未建立模型";
-  $("version-info").textContent = "建立基準後顯示模型版本。";
-  $("setup-summary").textContent = rows.length
-    ? `${meta.device === "UCI-household-01" ? "UCI 公開用電" : meta.device === "synthetic-01" ? "合成三通道" : "CSV"} · 參考 ${Number($("start").value)}–${end() - 1} · 待核准`
-    : "三個步驟，開始監測";
-  $("setup").open = true;
-  draw();
-  if (showMessage) {
-    status("實驗已重設。原始資料保留，合成事件與校正歷史已清除。");
-    $("setup").scrollIntoView({ behavior: "auto", block: "start" });
-    $("refok").focus({ preventScroll: true });
-  }
-}
-async function compute(rewind = false) {
-  pause();
-  if (!$("refok").checked) {
-    $("setup").open = true;
-    status("請先核准此區間作為展示參考工況。", "warning");
-    $("refok").focus();
-    return false;
-  }
-  const start = Number($("start").value),
-    stop = end();
+function apply(snapshot) {
+  if (S && snapshot.revision < S.revision) return;
   if (
-    !Number.isInteger(start) ||
-    !Number.isInteger(stop) ||
-    start < 0 ||
-    stop > rows.length ||
-    stop - start < 40 ||
-    stop >= rows.length
+    S &&
+    snapshot.revision === S.revision &&
+    snapshot.candidate?.id === S.candidate?.id &&
+    snapshot.progress < S.progress
   ) {
-    status("參考區間至少 40 筆，且必須保留後續回放資料。", "error");
-    return false;
+    snapshot.progress = S.progress;
+    snapshot.candidate = S.candidate;
   }
-  if (rewind && Object.keys(labels).some((i) => +i >= start && +i < stop)) {
-    status("參考區間包含合成事件。請先清除實驗，再選擇參考工況。", "error");
-    return false;
-  }
-  if (runAbort) runAbort.abort();
-  runAbort = new AbortController();
-  const id = ++request;
-  setBusy(true);
-  status("CPU 分析中：建立基準並依時間逐筆評分…");
+  S = snapshot;
+  sessionId = S.session_id;
+  draw();
+  if (S.job_pending && !poller) poller = setTimeout(poll, 50);
+}
+async function poll() {
+  poller = null;
+  if (!sessionId) return;
   try {
-    const response = await fetch("/api/run", {
+    let r = await fetch("/api/lifecycle/" + sessionId);
+    if (r.ok) apply(await r.json());
+  } catch {}
+  if (S?.job_pending && !poller) poller = setTimeout(poll, 50);
+}
+async function command(action, extra = {}, retry = true) {
+  if (busy || !S) return false;
+  busy = true;
+  controls();
+  try {
+    let r = await fetch("/api/lifecycle/" + action, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        rows,
-        start,
-        end: stop,
-        approve: false,
-        freeze: true,
-        actions,
+        session_id: sessionId,
+        expected_revision: S.revision,
+        ...extra,
       }),
-      signal: runAbort.signal,
     });
-    const data = await response.json();
-    if (!response.ok) throw Error(data.detail);
-    if (id !== request) return false;
-    scores = data.scores;
-    model = data.model;
-    ready = true;
-    if (rewind) cursor = stop;
-    $("seek").min = stop;
-    $("seek").value = cursor;
-    $("model").textContent = JSON.stringify(
-      {
-        ...model,
-        state_scope: "完整資料重播結尾；目前游標版本另見校正控制",
-        source: meta.source,
-        device: meta.device,
-        rows: rows.length,
-      },
-      null,
-      2,
-    );
-    $("version-info").textContent =
-      `Python ${model.python} · scikit-learn ${model.sklearn} · 模型 ${model.implementation} · 參考雜湊 ${model.reference_sha256.slice(0, 12)}…`;
-    $("setup-summary").textContent =
-      `${meta.device === "UCI-household-01" ? "UCI 公開用電" : meta.device === "synthetic-01" ? "合成三通道" : "CSV"} · 參考 ${start}–${stop - 1} · ${stop - start} 筆`;
-    $("setup").open = false;
-    draw();
-    status(
-      rewind
-        ? "基準已建立。播放資料，或在目前游標加入一個合成變化。"
-        : "實驗已更新。固定基準保留，所有資料先評分再校正。",
-      "success",
-    );
-    return true;
-  } catch (error) {
-    if (error.name !== "AbortError" && id === request) {
-      ready = false;
-      scores = [];
-      model = {};
-      $("model").textContent = "模型尚未建立；請修正資料或參考區間。";
-      $("version-info").textContent = "模型尚未建立。";
-      draw();
-      status(error.message, "error");
+    let data = await r.json();
+    if (r.status === 409) {
+      apply(data.detail.state);
+      busy = false;
+      controls();
+      if (action !== "advance" && retry) return command(action, extra, false);
+      return false;
     }
+    if (!r.ok)
+      throw Error(typeof data.detail === "string" ? data.detail : "動作未完成");
+    apply(data);
+    return true;
+  } catch (e) {
+    status(e.message, true);
     return false;
   } finally {
-    if (id === request) setBusy(false);
+    busy = false;
+    controls();
   }
 }
-function timeLabel(i, full = false) {
-  if (meta.device === "csv-single-device")
-    return full ? "第 " + i + " 筆（時間未提供）" : "#" + i;
-  const timestamp = meta.timestamps?.[i];
-  if (timestamp) {
-    const [date, time] = timestamp.split(" ");
-    return full ? date + " " + time.slice(0, 5) : time.slice(0, 5);
+async function initialize() {
+  status("CPU 正在建立初始參考與 v1 模型…");
+  busy = true;
+  controls();
+  try {
+    let r = await fetch("/api/lifecycle/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: 520 }),
+    });
+    let data = await r.json();
+    if (!r.ok) throw Error(data.detail);
+    apply(data);
+    status("可重現模擬已開始。每個窗口先評分，再決定收集或訓練。");
+    schedule();
+  } catch (e) {
+    status(e.message, true);
+  } finally {
+    busy = false;
+    controls();
   }
-  const minutes = Math.max(0, i);
-  return (
-    (full ? "第 " + i + " 筆 · " : "") +
-    String(Math.floor(minutes / 60)).padStart(2, "0") +
-    ":" +
-    String(minutes % 60).padStart(2, "0")
-  );
 }
-function formatValue(v) {
-  return v === null || !Number.isFinite(v) ? "—" : v.toFixed(2);
+function schedule() {
+  clearTimeout(timer);
+  if (playing && S && !S.exhausted) timer = setTimeout(tick, 1000);
 }
-function path(values, w, h, min, max) {
+async function tick() {
+  if (!playing) return;
+  if (!busy) await command("advance", { windows: Number($("speed").value) });
+  if (S?.exhausted) playing = false;
+  schedule();
+  controls();
+}
+function path(values, width, height, min, max) {
   let active = false;
   return values
     .map((value, i) => {
@@ -325,516 +159,376 @@ function path(values, w, h, min, max) {
         active = false;
         return "";
       }
-      const command = active ? "L" : "M";
+      const part = active ? "L" : "M";
       active = true;
-      return `${command}${(52 + (i * (w - 72)) / Math.max(1, values.length - 1)).toFixed(1)},${(h - 35 - ((value - min) / (max - min || 1)) * (h - 62)).toFixed(1)}`;
+      return `${part}${(47 + (i * (width - 65)) / Math.max(1, values.length - 1)).toFixed(1)},${(height - 30 - ((value - min) / (max - min || 1)) * (height - 52)).toFixed(1)}`;
     })
     .join(" ");
 }
-function runs(from, to, condition) {
-  let out = [],
-    begin = -1;
-  for (let i = from; i < to; i++) {
-    if (condition(i)) {
-      if (begin < 0) begin = i;
-    } else if (begin >= 0) {
-      out.push([begin, i - 1]);
-      begin = -1;
-    }
-  }
-  if (begin >= 0) out.push([begin, to - 1]);
-  return out;
-}
-function graph(id, series, colors, threshold) {
-  const el = $(id),
-    width = Math.max(240, el.clientWidth || 800),
-    height = id === "signal" ? 280 : 190;
-  const lo = Math.max(0, cursor - 239),
-    hi = Math.max(lo + 1, Math.min(cursor + 1, rows.length)),
-    size = hi - lo;
-  const sliced = series.map((s) => s.slice(lo, hi));
-  const values = sliced.flat().filter((v) => v !== null && Number.isFinite(v));
-  const channel = +$("channel").value,
-    band =
-      ready && id === "signal" && model.baseline
-        ? {
-            low: model.baseline[channel] - 4 * model.scale[channel],
-            high: model.baseline[channel] + 4 * model.scale[channel],
-          }
-        : null;
-  if (band) values.push(band.low, band.high);
-  let min = values.length ? Math.min(...values) : 0,
-    max = values.length ? Math.max(...values) : 1;
-  if (id === "scores") {
-    min = 0;
-    max = Math.max(6, max) * 1.12;
-  } else {
-    const padding = Math.max((max - min) * 0.16, 0.05);
-    min -= padding;
-    max += padding;
-    if (
-      id === "signal" &&
-      channel !== 1 &&
-      rows
-        .slice(lo, hi)
-        .every((row) => row[channel] === null || row[channel] >= 0)
-    )
-      min = Math.max(0, min);
-  }
-  const xpos = (i) => 52 + ((i - lo) * (width - 72)) / Math.max(1, size - 1),
-    ypos = (v) => height - 35 - ((v - min) / (max - min || 1)) * (height - 62);
-  el.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  el.dataset.lo = lo;
-  el.dataset.hi = hi;
+function frame(id, height, min, max, left = "", right = "") {
+  const e = $(id),
+    w = Math.max(240, e.clientWidth || 700);
+  e.setAttribute("viewBox", `0 0 ${w} ${height}`);
   let html = "";
-  if (band) {
-    html += `<rect x="52" y="${ypos(band.high)}" width="${width - 72}" height="${Math.max(0, ypos(band.low) - ypos(band.high))}" fill="#edf2ff" opacity=".7"/><line x1="52" x2="${width - 20}" y1="${ypos(band.high)}" y2="${ypos(band.high)}" stroke="#c9d6fa" stroke-dasharray="3 4"/>`;
+  for (let k = 0; k < 4; k++) {
+    const value = min + ((max - min) * k) / 3,
+      y = height - 30 - (k * (height - 52)) / 3;
+    html += `<line x1="47" x2="${w - 18}" y1="${y}" y2="${y}" stroke="#e7edf5"/><text x="38" y="${y + 4}" text-anchor="end">${value.toFixed(1)}</text>`;
   }
-  const refStart = Number($("start").value),
-    refEnd = end() - 1;
-  if (id === "signal" && refEnd >= lo && refStart < hi) {
-    const x = xpos(Math.max(lo, refStart)),
-      right = xpos(Math.min(hi - 1, refEnd));
-    html += `<rect x="${x}" y="20" width="${Math.max(2, right - x)}" height="${height - 55}" fill="${COLORS.reference}"/><text x="${x + 8}" y="33" class="annotation">${ready ? "參考工況" : "參考預選"}</text>`;
-  }
-  for (let tick = 0; tick < 4; tick++) {
-    const value = min + ((max - min) * tick) / 3,
-      y = ypos(value);
-    html += `<line x1="52" x2="${width - 20}" y1="${y}" y2="${y}" stroke="${COLORS.grid}"/><text x="42" y="${y + 4}" text-anchor="end">${value.toFixed(id === "signal" && +$("channel").value === 1 ? 0 : 1)}</text>`;
-  }
-  for (const [start, stop] of runs(lo, hi, (i) => !!labels[i])) {
-    html += `<rect x="${xpos(start) - 1}" y="20" width="${Math.max(3, xpos(stop) - xpos(start) + 3)}" height="${height - 55}" fill="${COLORS.injection}" opacity=".72"/>`;
-  }
-  if (id === "signal") {
-    for (const [start, stop] of runs(
-      lo,
-      hi,
-      (i) => scores[i] && (scores[i].fixed > 4 || scores[i].missing),
-    )) {
-      html += `<line x1="${xpos(start)}" x2="${xpos(stop) + 2}" y1="12" y2="12" stroke="${COLORS.alert}" stroke-width="3" stroke-linecap="round"/>`;
+  html += `<text x="47" y="${height - 6}">${esc(left)}</text><text x="${w - 18}" y="${height - 6}" text-anchor="end">${esc(right)}</text>`;
+  return {
+    e,
+    w,
+    html,
+    y: (value) =>
+      height - 30 - ((value - min) / (max - min || 1)) * (height - 52),
+  };
+}
+function signalChart() {
+  const p = (S?.points || []).slice(-768),
+    key = $("channel").value,
+    values = p.map((x) => x[key]),
+    finite = values.filter(Number.isFinite);
+  let min = finite.length ? Math.min(...finite) : 0,
+    max = finite.length ? Math.max(...finite) : 1,
+    pad = Math.max((max - min) * 0.14, 0.05);
+  min = Math.max(0, min - pad);
+  max += pad;
+  const f = frame(
+    "signal",
+    280,
+    min,
+    max,
+    p.length ? clock(p[0].seconds) : "",
+    p.length ? clock(p.at(-1).seconds) : "",
+  );
+  let html = f.html;
+  const xpos = (i) => 47 + (i * (f.w - 65)) / Math.max(1, p.length - 1);
+  for (let i = 0; i < p.length; i++)
+    if (p[i].alert)
+      html += `<circle cx="${xpos(i)}" cy="12" r="1.4" fill="${AMBER}"/>`;
+  html += `<path d="${path(values, f.w, 280, min, max)}" fill="none" stroke="${BLUE}" stroke-width="1.7"/>`;
+  const labelled = values.map((v, i) => (p[i].annotation ? v : null));
+  html += `<path d="${path(labelled, f.w, 280, min, max)}" fill="none" stroke="${AMBER}" stroke-width="2"/>`;
+  for (const v of S?.versions || []) {
+    const at = p.findIndex((x) => x.i >= v.activation_at);
+    if (at > 0) {
+      const x = xpos(at);
+      html += `<line x1="${x}" x2="${x}" y1="20" y2="250" stroke="#a9bae4" stroke-dasharray="4 4"/><text x="${x + 5}" y="34">${esc(v.version)} 啟用</text>`;
     }
   }
-  if (threshold)
-    html += `<line x1="52" x2="${width - 20}" y1="${ypos(threshold)}" y2="${ypos(threshold)}" stroke="#a2aab7" stroke-dasharray="5 5"/>`;
-  sliced.forEach((v, j) => {
-    html += `<path d="${path(v, width, height, min, max)}" fill="none" stroke="${colors[j]}" stroke-width="${id === "signal" ? 2.2 : 1.7}" ${id === "scores" && j === 1 ? 'stroke-dasharray="5 4"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`;
-  });
-  if (id === "signal") {
-    const injected = sliced[0].map((v, j) => (labels[lo + j] ? v : null));
-    html += `<path d="${path(injected, width, height, min, max)}" fill="none" stroke="#d99125" stroke-width="2.4" stroke-linecap="round"/>`;
-    for (const [begin, last] of runs(lo, hi, (i) => !!labels[i]))
-      if (begin === last && rows[begin][channel] !== null)
-        html += `<circle cx="${xpos(begin)}" cy="${ypos(rows[begin][channel])}" r="3" fill="#d99125"/>`;
-  }
-  for (let tick = 0; tick < 4; tick++) {
-    const i = lo + Math.round(((size - 1) * tick) / 3);
-    html += `<text x="${xpos(i)}" y="${height - 9}" text-anchor="${tick === 0 ? "start" : tick === 3 ? "end" : "middle"}">${timeLabel(i)}</text>`;
-  }
-  if (selected >= lo && selected < hi) {
-    html += `<line x1="${xpos(selected)}" x2="${xpos(selected)}" y1="18" y2="${height - 35}" stroke="${COLORS.text}" stroke-dasharray="3 3"/>`;
-  }
-  el.innerHTML = html;
+  f.e.innerHTML = html;
+  f.e.dataset.points = JSON.stringify(p.map((x) => x.i));
 }
-function groupEvents() {
-  const groups = [];
-  for (let i = end(); i <= cursor; i++) {
-    const score = scores[i];
-    if (!score) continue;
-    const type =
-      labels[i] ||
-      (score.missing
-        ? "來源缺值"
-        : score.fixed > 4 || score.adaptive > 4 || score.ml_alert
-          ? "背景警報"
-          : "");
-    if (!type) continue;
-    const last = groups.at(-1);
-    if (last && last.stop === i - 1 && last.type === type) {
-      last.stop = i;
-      last.fixed = Math.max(last.fixed, score.fixed);
-      last.adaptive = Math.max(last.adaptive, score.adaptive);
-      last.ml ||= score.ml_alert;
-    } else
-      groups.push({
-        start: i,
-        stop: i,
-        type,
-        synthetic: !!labels[i],
-        fixed: score.fixed,
-        adaptive: score.adaptive,
-        ml: score.ml_alert,
-      });
+function histogram() {
+  if (!S) return;
+  const h = S.histogram,
+    ref = h.reference.map((x) => (100 * x) / h.reference_n),
+    cur = h.current.map((x) => (100 * x) / (h.current_n || 1)),
+    max = Math.max(5, ...ref, ...cur) * 1.1,
+    f = frame(
+      "histogram",
+      185,
+      0,
+      max,
+      h.edges[0].toFixed(1),
+      h.edges.at(-1).toFixed(1),
+    ),
+    step = (f.w - 65) / cur.length;
+  let html = f.html;
+  for (let i = 0; i < cur.length; i++) {
+    const x = 47 + i * step;
+    html += `<rect x="${x}" y="${f.y(ref[i])}" width="${Math.max(1, step - 1)}" height="${155 - f.y(ref[i])}" fill="#dbe5ff"/><rect x="${x + step * 0.2}" y="${f.y(cur[i])}" width="${Math.max(1, step * 0.6)}" height="${155 - f.y(cur[i])}" fill="#6488e8" opacity=".8"/>`;
   }
-  return groups;
+  f.e.innerHTML = html;
+  $("histogram-count").textContent =
+    `各自正規化為百分比 · 參考 ${h.reference_n} / 目前 ${h.current_n} 筆 · 超顯示範圍 ${h.outside} 筆併入邊界`;
 }
-function drawEvents() {
-  const all = groupEvents(),
-    filter = $("event-filter").value,
-    groups = all
-      .filter(
-        (g) =>
-          filter === "all" ||
-          (filter === "synthetic" ? g.synthetic : !g.synthetic),
-      )
-      .reverse();
-  $("event-count").textContent = groups.length;
-  $("events-empty").hidden = groups.length > 0;
-  $("events-empty").querySelector("strong").textContent = !ready
-    ? "先建立基準，再觀察變化"
-    : filter === "synthetic"
-      ? "目前還沒有合成事件"
-      : "此回放區間沒有警報";
-  $("events-empty").querySelector("p").textContent = !ready
-    ? "回放資料或加入合成事件，這裡會顯示需要留意的區間。"
-    : filter === "synthetic"
-      ? "使用右側測試動作，在目前游標加入一個合成變化。"
-      : "繼續回放，或加入合成事件檢查模型反應。";
-  $("events").innerHTML = groups
-    .slice(0, 50)
-    .map(
-      (g) =>
-        `<tr data-i="${g.start}" tabindex="0" aria-label="定位${escapeHTML(g.type)}，第 ${g.start} 至 ${g.stop} 筆" class="${selected >= g.start && selected <= g.stop ? "selected" : ""}"><td><strong>${timeLabel(g.start)}</strong><small>#${g.start}${g.stop > g.start ? "–" + g.stop + " · " + (g.stop - g.start + 1) + " 筆" : ""}</small></td><td><span class="event-type ${g.synthetic ? "synthetic" : ""}"><i></i>${escapeHTML(g.type)}</span></td><td class="mono">${g.fixed.toFixed(1)} <span class="subtle">/</span> ${g.adaptive.toFixed(1)}</td><td><span class="ml-state ${g.ml ? "active" : ""}">${g.ml ? "觸發" : "—"}</span></td><td class="event-arrow">↗</td></tr>`,
-    )
-    .join("");
-}
-function draw() {
-  $("comparison-empty").hidden = ready;
-  $("scores").toggleAttribute("hidden", !ready);
-  $("score-legend").hidden = !ready;
-  $("baseline-legend").textContent = ready ? "固定基準 ±4 MAD" : "參考預選區間";
-  const valid = scores.slice(0, cursor + 1).filter(Boolean),
-    indices = Object.keys(labels).filter((i) => +i <= cursor),
-    hits = indices.filter(
-      (i) =>
-        scores[i] &&
-        (scores[i].fixed > 4 ||
-          scores[i].adaptive > 4 ||
-          scores[i].ml_alert ||
-          scores[i].missing),
+function driftChart() {
+  if (!S) return;
+  const h = S.windows_history,
+    max =
+      Math.max(2.5, ...h.flatMap((x) => [x.drift, x.immutable_drift])) * 1.1,
+    f = frame(
+      "drift",
+      145,
+      0,
+      max,
+      h.length ? "窗 " + h[0].window : "",
+      h.length ? "窗 " + h.at(-1).window : "",
     );
-  $("fixed").textContent = ready
-    ? valid.filter((s) => s.fixed > 4 || s.missing).length.toLocaleString()
-    : "—";
-  $("adaptive").textContent = ready
-    ? valid.filter((s) => s.adaptive > 4 || s.missing).length.toLocaleString()
-    : "—";
-  $("recall").textContent = indices.length
-    ? Math.round((hits.length * 100) / indices.length) + "%"
-    : "—";
-  $("coverage-count").textContent = indices.length
-    ? `${hits.length} / ${indices.length} 注入筆次`
-    : "尚無合成事件";
-  $("current-value").textContent = formatValue(
-    rows[cursor]?.[+$("channel").value],
-  );
-  $("current-unit").textContent = channels[+$("channel").value].unit;
-  $("current-time").textContent = rows.length
-    ? timeLabel(cursor, true)
-    : "尚無資料";
-  $("position").textContent = rows.length
-    ? `第 ${cursor.toLocaleString()} / ${(rows.length - 1).toLocaleString()} 筆`
-    : "—";
-  $("replay-progress").textContent = rows.length
-    ? `${Math.round((cursor / Math.max(1, rows.length - 1)) * 100)}%`
-    : "—";
-  $("seek").style.setProperty(
-    "--progress",
-    rows.length ? (cursor / (rows.length - 1)) * 100 + "%" : "0%",
-  );
-  const s = scores[cursor];
-  $("current-version").textContent = s?.version ?? "—";
-  $("current-shift").textContent = s ? s.shift.toFixed(2) + " MAD" : "—";
-  const point = !ready
-    ? "尚未建立基準"
-    : labels[cursor]
-      ? labels[cursor]
-      : s?.missing
-        ? "資料缺值"
-        : s && (s.fixed > 4 || s.adaptive > 4 || s.ml_alert)
-          ? "背景警報 · 無真值"
-          : "未觸發警報";
-  $("point-state").textContent = point;
-  $("point-state").className =
-    "point-state " +
-    (labels[cursor]
-      ? "synthetic"
-      : s && (s.fixed > 4 || s.missing)
-        ? "alert"
-        : "");
-  graph("signal", [rows.map((r) => r[+$("channel").value])], [COLORS.signal]);
-  graph(
-    "scores",
-    [
-      scores.map((s) => s?.fixed ?? null),
-      scores.map((s) => s?.adaptive ?? null),
-      scores.map((s) => s?.shift ?? null),
-    ],
-    [COLORS.fixed, COLORS.adaptive, COLORS.shift],
-    4,
-  );
-  drawEvents();
-  drawNearbyResults();
-  updateControls();
+  f.e.innerHTML =
+    f.html +
+    `<line x1="47" x2="${f.w - 18}" y1="${f.y(S.drift_threshold)}" y2="${f.y(S.drift_threshold)}" stroke="${AMBER}" stroke-dasharray="4 4"/><path d="${path(
+      h.map((x) => x.immutable_drift),
+      f.w,
+      145,
+      0,
+      max,
+    )}" fill="none" stroke="${GREY}" stroke-width="1.5"/><path d="${path(
+      h.map((x) => x.drift),
+      f.w,
+      145,
+      0,
+      max,
+    )}" fill="none" stroke="${BLUE}" stroke-width="1.9"/>`;
 }
-function drawNearbyResults() {
-  const score = scores[cursor];
-  $("injection-feedback").hidden = !ready || !lastInjection;
-  $("calibration-feedback").hidden = !ready;
-  const text = busy
-    ? "CPU 分析中，結果就緒後會更新。"
-    : score
-      ? `第 ${cursor} 筆：固定 ${score.fixed.toFixed(1)} MAD ／ 校正 ${score.adaptive.toFixed(1)} MAD${score.missing ? "；缺值品質警報，分數為參考補值後計算" : ""}`
-      : "尚未回放此區間";
-  $("calibration-feedback-scores").textContent = text;
-  $("injection-feedback-scores").textContent = text;
-  if (lastInjection)
-    $("injection-feedback-title").textContent =
-      `合成${{ spike: "同步尖峰", drift: "漂移", missing: "缺值" }[lastInjection.type]} · #${lastInjection.start}${lastInjection.stop > lastInjection.start ? "–" + lastInjection.stop : ""}`;
-}
-document.querySelectorAll("[data-show-results]").forEach(
-  (button) =>
-    (button.onclick = () => {
-      $("comparison").scrollIntoView({
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-        block: "start",
-      });
-      $("comparison").focus({ preventScroll: true });
-    }),
-);
-function addAction(action) {
-  if (busy || !ready) return false;
-  actions = actions.filter((a) => a.at <= cursor);
-  actions.push({ at: cursor, ...action });
-  return compute();
-}
-function locateEvent(row) {
-  if (!row) return;
-  pause();
-  selected = +row.dataset.i;
-  cursor = selected;
-  $("seek").value = cursor;
-  draw();
-  $("signal-wrap").scrollIntoView({
-    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-      ? "auto"
-      : "smooth",
-    block: "center",
-  });
-}
-$("source").onchange = load;
-for (const id of ["start", "end"])
-  $(id).onchange = () => {
-    reset(false);
-    status("參考區間已變更。請重新核准並建立基準。");
-  };
-$("build").onclick = async () => {
-  if (busy) return;
-  actions = [];
-  if (await compute(true)) {
-    $("play").focus({ preventScroll: true });
-    $("signal-wrap").scrollIntoView({ behavior: "auto", block: "center" });
-  }
-};
-$("reset").onclick = () => reset();
-$("play").onclick = () => {
-  if (timer) {
-    pause();
-    updateControls();
+function candidate() {
+  const job = S?.candidate;
+  $("candidate-empty").hidden = !!job;
+  $("candidate-content").hidden = !job;
+  $("candidate-label").textContent = job
+    ? job.state === "promoted" && job.promoted_version !== S.active
+      ? "已驗收／非 Active"
+      : states[job.state] || job.state
+    : "尚未觸發";
+  $("candidate-label").className =
+    "badge " +
+    (job?.state === "promoted"
+      ? "teal"
+      : job?.state === "rejected"
+        ? "amber"
+        : "neutral");
+  if (!job) {
+    $("candidates").innerHTML = "";
+    $("acceptance").textContent = "";
+    $("split-details").textContent = "";
     return;
   }
-  if (!ready || busy) return;
-  $("play").innerHTML =
-    '<svg class="icon"><use href="#i-pause"/></svg><span>暫停</span>';
-  $("play").setAttribute("aria-label", "暫停");
-  timer = setInterval(() => {
-    cursor = Math.min(rows.length - 1, cursor + Number($("speed").value));
-    $("seek").value = cursor;
-    draw();
-    if (cursor === rows.length - 1) {
-      pause();
-      updateControls();
-    }
-  }, 200);
-  updateControls();
+  $("candidate-window").textContent =
+    `${job.samples} 合格樣本 · #${job.data_window[0]}–${job.data_window[1]} · ${job.method}${job.duration_ms ? " · 實際 " + job.duration_ms + " ms" : ""}`;
+  $("candidates").innerHTML = (job.candidates || [])
+    .map(
+      (c) =>
+        `<tr class="${job.winner === c.name ? "winner" : ""}"><td><strong>${esc(c.name)}</strong><small>${c.fit_ms} ms · ${job.winner === c.name ? "選中候選" : "重新 fit"}</small></td><td>${percent(c.selection.current_alert_rate)}</td><td>${percent(c.selection.anchor_alert_rate)}</td><td>${percent(c.selection.synthetic_recall)}</td></tr>`,
+    )
+    .join("");
+  const test = job.test;
+  $("acceptance").className = "acceptance " + job.state;
+  $("acceptance").textContent = test
+    ? `${job.state === "promoted" ? (job.promoted_version === S.active ? "驗收通過，已啟用 " + S.active : "此候選曾通過驗收；目前 Active 為 " + S.active) : "未通過驗收，保留 active"}。最終留出：工況警報 ${percent(test.current_alert_rate)}、舊參考警報 ${percent(test.anchor_alert_rate)}、合成挑戰 ${percent(test.synthetic_recall)}、大偏移保留 ${percent(test.unsafe_drift_recall)}。${(job.reasons || []).join("；")}`
+    : "真實 CPU 排程／fit 中，完成後才顯示驗收結果。";
+  $("split-details").textContent = JSON.stringify(
+    {
+      splits: job.splits,
+      gate: job.gate,
+      source: job.challenge_source,
+      started_at: job.training_started_at,
+      finished_at: job.finished_at,
+      data_sha: job.data_sha,
+    },
+    null,
+    2,
+  );
+}
+function histories() {
+  if (!S) return;
+  $("versions").innerHTML = [...S.versions]
+    .reverse()
+    .slice(0, 6)
+    .map(
+      (v) =>
+        `<div class="version-item ${v.version === S.active ? "active" : ""}"><strong>${esc(v.version)} <span class="badge ${v.version === S.active ? "blue" : "neutral"}">${v.version === S.active ? "Active" : v.retained ? "模型保留" : "僅 metadata"}</span></strong><p>${esc(v.method)}<br>${esc(date(v.created_at))}<br>fit #${v.window[0]}–${v.window[1]} · ${v.samples} 筆<br>啟用於 #${v.activation_at} · 資料 ${esc(v.data_sha)}<br>留出警報 ${percent(v.metrics.current_alert_rate)} · 舊參考 ${percent(v.metrics.anchor_alert_rate)} · 合成 ${percent(v.metrics.synthetic_recall)}</p></div>`,
+    )
+    .join("");
+  $("training-history").innerHTML =
+    [...S.training_history]
+      .reverse()
+      .map(
+        (j) =>
+          `<tr><td>${esc(date(j.training_started_at || j.at))}<small>${esc(date(j.finished_at))}${j.duration_ms ? " · " + j.duration_ms + " ms" : ""}</small></td><td><span class="badge ${j.state === "promoted" ? "teal" : j.state === "rolled_back" ? "blue" : "amber"}">${esc(states[j.state] || j.state)}</span></td><td>${j.data_window ? "#" + j.data_window.join("–") : (j.from || "") + " → " + (j.to || "")}</td><td>${esc((j.reasons || []).join("；") || (j.state === "promoted" ? "時間留出／舊參考／合成挑戰通過" : "回退後凍結自動訓練"))}</td></tr>`,
+      )
+      .join("") ||
+    '<tr><td colspan="4">尚無再訓練；等待真實觸發條件。</td></tr>';
+  $("events").innerHTML =
+    [...S.events]
+      .reverse()
+      .map(
+        (e) =>
+          `<tr><td>#${e.start}–${e.end}</td><td>${e.alerts} 筆警示 · ${e.max_score.toFixed(2)}×門檻<small>初始基準 ${e.baseline_alerts ?? 0} 筆 · 品質 ${e.quality} · 工況超界 ${e.guard}</small></td><td>${esc(e.annotation)}</td><td>${esc(e.version)}</td></tr>`,
+      )
+      .join("") || '<tr><td colspan="4">第一個完整窗口抵達後顯示。</td></tr>';
+}
+function draw() {
+  if (!S) return;
+  const point = S.points.at(-1),
+    key = $("channel").value,
+    unit = { power: "kW", voltage: "V", current: "A" }[key];
+  $("signal-value").textContent =
+    point && Number.isFinite(point[key]) ? point[key].toFixed(2) : "—";
+  $("signal-unit").textContent = unit;
+  $("point-state").textContent = point
+    ? point.missing
+      ? "資料品質警報"
+      : point.guard
+        ? "超出核准工況"
+        : point.alert
+          ? "模型警示"
+          : point.fixed > 1
+            ? "初始基準偏移"
+            : "未觸發警示"
+    : "參考已建立";
+  $("point-state").className =
+    "badge " + (point?.alert || point?.fixed > 1 ? "amber" : "neutral");
+  $("virtual-time").textContent = clock(S.seconds);
+  $("total").textContent = S.total.toLocaleString() + " 筆";
+  $("windows").textContent = S.windows + " 窗";
+  $("active").textContent = S.active;
+  $("baseline-alert-rate").textContent =
+    "初始基準 " + percent(S.windows_history.at(-1)?.fixed_alert_rate);
+  $("alert-rate").textContent = percent(S.windows_history.at(-1)?.alert_rate);
+  $("seed-label").textContent = S.seed;
+  $("training-state").textContent = states[S.state] || S.state;
+  $("training-state").className =
+    "badge " +
+    (["blocked", "rejected"].includes(S.state)
+      ? "amber"
+      : S.state === "promoted"
+        ? "teal"
+        : "neutral");
+  $("sample-gate").textContent = S.eligible + " / " + S.min_train;
+  $("sample-meter").style.width =
+    Math.min(100, (S.eligible / S.min_train) * 100) + "%";
+  $("persist-gate").textContent = S.streak + " / " + S.persist_required + " 窗";
+  $("cooldown-gate").textContent = S.cooldown + " 窗";
+  $("gate-reason").textContent = S.reason;
+  $("auto-training").checked = S.training_enabled;
+  $("training-progress").hidden = !S.job_pending;
+  $("training-progress-label").textContent =
+    S.state === "queued" ? "CPU 等待排程" : "CPU 真實訓練中";
+  $("training-progress-count").textContent = S.progress + " / 3 候選";
+  $("drift-value").textContent = S.drift.toFixed(2);
+  $("drift-threshold").textContent = S.drift_threshold.toFixed(2);
+  $("immutable-drift").textContent = S.immutable_drift.toFixed(2);
+  $("limits").textContent =
+    `有界保存：訊號 ${S.limits.points} 筆、合格樣本 ${S.limits.eligible} 筆、歷程 ${S.limits.history} 次、模型 ${S.limits.versions} 版。本次上限 ${S.limits.samples.toLocaleString()} 筆。工作階段重設會清空；匯出為 metadata/有界樣本，不是權重檔。`;
+  signalChart();
+  histogram();
+  driftChart();
+  candidate();
+  histories();
+  controls();
+}
+$("play").onclick = () => {
+  playing = !playing;
+  if (playing) schedule();
+  else clearTimeout(timer);
+  controls();
+  status(playing ? "繼續逐窗監測。" : "串流已暫停；已送出的窗口仍會完成。");
 };
-$("step").onclick = () => {
-  pause();
-  if (!ready || busy) return;
-  cursor = Math.min(rows.length - 1, cursor + 1);
-  $("seek").value = cursor;
-  draw();
+$("step").onclick = async () => {
+  playing = false;
+  clearTimeout(timer);
+  await command("advance", { windows: 1 });
+  controls();
+  if (!$("step").disabled) $("step").focus({ preventScroll: true });
 };
-$("seek").oninput = (event) => {
-  pause();
-  cursor = +event.target.value;
-  selected = -1;
-  draw();
-};
-$("channel").onchange = draw;
-$("event-filter").onchange = drawEvents;
-$("freeze").onclick = async () => {
-  if (await addAction({ frozen: !stateAt(cursor).frozen }))
-    $("freeze").focus({ preventScroll: true });
-};
-$("approve").onchange = async () => {
-  if (ready && (await addAction({ approved: $("approve").checked })))
-    $("approve").focus({ preventScroll: true });
+$("reset").onclick = async () => {
+  playing = false;
+  clearTimeout(timer);
+  if (await command("reset")) {
+    playing = true;
+    schedule();
+    status("已重設 seed 520、初始參考與 v1；舊訓練結果不會覆蓋新工作階段。");
+  }
+  controls();
 };
 $("rollback").onclick = async () => {
-  if (await addAction({ rollback: true }))
-    $("rollback").focus({ preventScroll: true });
+  if (await command("rollback"))
+    status("已回退上一模型並凍結自動訓練；串流與固定邊界持續。");
 };
-$("events").onclick = (event) =>
-  locateEvent(event.target.closest("tr[data-i]"));
-$("events").onkeydown = (event) => {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    locateEvent(event.target.closest("tr[data-i]"));
-  }
+$("auto-training").onchange = async () => {
+  if (await command("configure", { enabled: $("auto-training").checked }))
+    $("auto-training").focus({ preventScroll: true });
+};
+$("channel").onchange = () => {
+  signalChart();
+  draw();
 };
 document.querySelectorAll("[data-inject]").forEach(
-  (button) =>
-    (button.onclick = async () => {
-      if (!ready || busy) return;
-      pause();
-      const type = button.dataset.inject,
-        start = Math.max(cursor, end()),
-        count = type === "spike" ? 1 : type === "drift" ? 90 : 10;
-      for (let j = 0; j < count && start + j < rows.length; j++) {
-        const i = start + j;
-        labels[i] =
-          "合成 " + { spike: "尖峰", drift: "慢性漂移", missing: "缺值" }[type];
-        if (type === "missing") rows[i][0] = null;
-        else {
-          rows[i][0] =
-            (rows[i][0] ?? 0) + (type === "spike" ? 2 : (1.5 * j) / 89);
-          rows[i][2] =
-            (rows[i][2] ?? 0) + (type === "spike" ? 8.7 : (6.5 * j) / 89);
-        }
-      }
-      lastInjection = {
-        type,
-        start,
-        stop: Math.min(rows.length - 1, start + count - 1),
-      };
-      if (await compute()) {
-        button.focus({ preventScroll: true });
-        const until = Math.min(rows.length - 1, start + count - 1);
-        status(
-          `已注入${{ spike: "合成尖峰", drift: "合成漂移", missing: "合成缺值" }[type]}：第 ${start}${until > start ? "–" + until : ""} 筆。${type === "spike" ? "功率 +2 kW、電流 +8.7 A 同步尖峰；" : ""}可播放觀察後續反應。`,
-          "success",
-        );
-      }
+  (b) =>
+    (b.onclick = async () => {
+      if (await command("inject", { kind: b.dataset.inject }))
+        status("手動合成事件已排入下一個窗口；不影響訓練標籤。");
     }),
 );
 $("export").onclick = () => {
+  if (!S) return;
   const blob = new Blob(
-    [
-      JSON.stringify(
-        {
-          schema: 2,
-          model,
-          model_scope: "全資料時間序重播結尾；非目前游標狀態",
-          current_cursor_state: {
-            version: scores[cursor]?.version ?? 0,
-            shift: scores[cursor]?.shift ?? 0,
-            score_before_update: true,
+      [
+        JSON.stringify(
+          {
+            schema: "lifecycle-1",
+            exported_at: new Date().toISOString(),
+            ...S,
+            limitations:
+              "模擬工況與合成挑戰；非實體設備、非 TTT；僅有界資料與版本 metadata，不包含 sklearn pickle",
           },
-          meta,
-          rows,
-          labels,
-          controls: { start: Number($("start").value), end: end(), actions },
-          cursor,
-          note: "ML 可由種子、參考資料與套件版本重建；合成標籤不餵入模型；未輸出 pickle",
-        },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
-  );
-  const url = URL.createObjectURL(blob),
+          null,
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    ),
+    url = URL.createObjectURL(blob),
     a = document.createElement("a");
   a.href = url;
-  a.download = "signal-experiment.json";
+  a.download = "signal-lifecycle.json";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  status("實驗已匯出，包含資料、模型參數與控制時間軸。", "success");
+  status("已匯出 seed、政策、分布、候選驗收與版本 metadata。");
 };
-$("csv").onchange = async (event) => {
-  try {
-    if (!event.target.files[0]) return;
-    const text = await event.target.files[0].text(),
-      lines = text.trim().split(/\r?\n/),
-      header = lines.shift().split(",");
-    if (header.join(",") !== "power_kw,voltage_v,current_a")
-      throw Error("CSV 欄位需為 power_kw,voltage_v,current_a");
-    const parsed = lines.map((line) =>
-      line.split(",").map((v) => (v.trim() === "" ? null : Number(v))),
-    );
-    if (
-      parsed.length < 80 ||
-      parsed.length > 20000 ||
-      parsed.some(
-        (row) =>
-          row.length !== 3 ||
-          row.some((v) => v !== null && !Number.isFinite(v)),
-      )
-    )
-      throw Error("CSV 需 80–20,000 筆、三個數值欄位；空白視為缺值");
-    sourceRequest++;
-    if (runAbort) runAbort.abort();
-    let option = $("source").querySelector("option[value=csv]");
-    if (!option) {
-      option = document.createElement("option");
-      option.value = "csv";
-      option.textContent = "自訂 CSV · 使用者資料";
-      option.disabled = true;
-      $("source").append(option);
-    }
-    option.selected = true;
-    original = parsed;
-    meta = {
-      source: "使用者 CSV · 授權與時間順序需自行確認",
-      device: "csv-single-device",
-    };
-    $("start").value = 0;
-    $("end").value = Math.min(180, Math.floor(parsed.length * 0.5));
-    reset(false);
-    $("provenance").textContent =
-      parsed.length.toLocaleString() + " 筆 · CSV 單一設備";
-    $("evidence-source").textContent = meta.source;
-    status("CSV 已載入。請選擇並核准參考區間。");
-    setBusy(false);
-  } catch (error) {
-    status(error.message, "error");
-  }
-};
-$("signal").addEventListener("pointermove", (event) => {
+$("signal").onpointermove = (event) => {
+  if (!S?.points.length) return;
   const el = $("signal"),
-    rect = el.getBoundingClientRect(),
-    width = rect.width,
-    lo = +el.dataset.lo,
-    hi = +el.dataset.hi;
-  if (!rows.length || hi <= lo) return;
-  const offset = Math.max(
+    box = el.getBoundingClientRect(),
+    p = S.points.slice(-768),
+    j = Math.max(
       0,
-      Math.min(1, (event.clientX - rect.left - 52) / (width - 72)),
+      Math.min(
+        p.length - 1,
+        Math.round(
+          ((event.clientX - box.left - 47) / (box.width - 65)) * (p.length - 1),
+        ),
+      ),
     ),
-    i = Math.min(hi - 1, lo + Math.round(offset * (hi - lo - 1))),
-    score = scores[i];
-  $("chart-tooltip").innerHTML =
-    `<strong>${timeLabel(i, true)}</strong><span>${channels[+$("channel").value].name} ${formatValue(rows[i]?.[+$("channel").value])} ${channels[+$("channel").value].unit}</span>${labels[i] ? '<span class="synthetic">' + escapeHTML(labels[i]) + "</span>" : ""}${score ? `<small>固定 ${score.fixed.toFixed(2)} · 校正 ${score.adaptive.toFixed(2)}</small>` : ""}`;
-  $("chart-tooltip").hidden = false;
-  $("chart-tooltip").style.left =
-    Math.min(Math.max(8, event.clientX - rect.left + 12), width - 210) + "px";
-  $("chart-tooltip").style.top =
-    Math.min(Math.max(12, event.clientY - rect.top - 60), 160) + "px";
+    x = p[j],
+    key = $("channel").value;
+  $("tooltip").innerHTML =
+    `<strong>#${x.i} · ${clock(x.seconds)} · ${esc(x.version)}</strong>${key} ${x[key] === null ? "缺值" : x[key].toFixed(3)}<br>模型 ${x.score.toFixed(2)}×門檻<br>初始基準 ${x.fixed.toFixed(2)}×門檻<br>${esc(x.annotation || "無合成事件標記")}`;
+  $("tooltip").hidden = false;
+  $("tooltip").style.left =
+    Math.max(5, Math.min(box.width - 210, event.clientX - box.left + 10)) +
+    "px";
+  $("tooltip").style.top = "25px";
+};
+$("signal").onpointerleave = () => {
+  $("tooltip").hidden = true;
+};
+let resizeTimer;
+new ResizeObserver(() => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (S) {
+      signalChart();
+      histogram();
+      driftChart();
+    }
+  }, 40);
+}).observe(document.querySelector(".signal-panel"));
+window.addEventListener("pagehide", () => {
+  if (S)
+    navigator.sendBeacon(
+      "/api/lifecycle/release",
+      new Blob(
+        [
+          JSON.stringify({
+            session_id: sessionId,
+            expected_revision: S.revision,
+          }),
+        ],
+        { type: "application/json" },
+      ),
+    );
 });
-$("signal").addEventListener("pointerleave", () => {
-  $("chart-tooltip").hidden = true;
-});
-new ResizeObserver(() => draw()).observe($("signal-wrap"));
-load();
+initialize();
