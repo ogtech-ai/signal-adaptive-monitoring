@@ -1,10 +1,426 @@
-<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signal Lab • 受控適應監測</title><style>
-:root{font-family:system-ui,sans-serif;color:#dceaf7;background:#081629}*{box-sizing:border-box}body{margin:0}header{padding:28px 4%;border-bottom:1px solid #23405b;background:#0b2039}h1{font-size:27px;margin:8px 0}p{line-height:1.6}.eyebrow{color:#4de1df;letter-spacing:3px;font-size:12px}.wrap{max-width:1500px;margin:auto;padding:24px 4%}.layout{display:grid;grid-template-columns:290px 1fr;gap:22px}.panel{background:#10263f;border:1px solid #28445f;border-radius:12px;padding:20px;margin-bottom:18px}h2{font-size:17px;margin:0 0 16px}label{display:block;margin:12px 0;font-size:13px}input,select,button{font:inherit;border-radius:6px;padding:9px;border:1px solid #42627c}input[type=number]{width:92px}select{width:100%}button{cursor:pointer;background:#dafcfa;color:#09243a;font-weight:650;margin:4px 3px 4px 0}button.secondary{background:#1c3b58;color:#e7f2fa}button:disabled{opacity:.4;cursor:wait}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.muted,small{color:#9fb7cc;font-size:12px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.stat{padding:17px;background:#f2f7fb;color:#10263f;border-radius:10px}.stat b{display:block;font-size:27px;margin-top:8px}.chart{width:100%;height:250px;background:#091a2e;border-radius:8px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:9px;border-bottom:1px solid #29435b}tr[data-i]{cursor:pointer}tr:hover{background:#224561}.scroll{max-height:240px;overflow:auto}pre{white-space:pre-wrap;font-size:11px}#status{color:#4de1df;min-height:22px}.warn{color:#ffd695}a{color:#52dedc}svg text{fill:#a9bed1;font:11px system-ui}.legend{font-size:12px;margin:8px 0;color:#bcd0df}@media(max-width:800px){.layout{grid-template-columns:1fr}.cards{grid-template-columns:1fr 1fr 1fr}.wrap{padding:16px}.stat{padding:12px}.stat b{font-size:22px}h1{font-size:23px}}
-</style><header><div class="eyebrow">OG TECH / SIGNAL / CPU DEMO</div><h1>多來源時序・受控適應監測實驗台</h1><div class="muted">固定基準 × 受控基準校正 × IsolationForest ｜ 記錄器資料整合的售前驗證</div></header><main class="wrap"><div class="layout"><aside>
-<section class="panel"><h2>01 / 資料與參考工況</h2><label>資料來源<select id="source"><option value="synthetic">全合成三通道 · 離線可用</option><option value="uci">UCI 家庭用電 · 真實量測</option></select></label><label>或匯入 CSV（三通道，單一設備）<input id="csv" type="file" accept=".csv" style="width:100%"></label><small>欄位 power_kw,voltage_v,current_a；空值允許，至少 80 筆。依時間遞增，不合併設備。</small><label>參考起點 <input id="start" type="number" value="0" min="0"></label><label>參考終點（不含） <input id="end" type="number" value="180" min="40"></label><label><input id="refok" type="checkbox"> 我核准此區間為展示參考工況</label><button id="build">建立模型 / 重設回放</button><p class="muted" id="provenance"></p></section>
-<section class="panel"><h2>02 / 校正控制</h2><label><input id="approve" type="checkbox"> 核准後續通過基準門檻的工況</label><button id="freeze" class="secondary">解除凍結</button><button id="rollback" class="secondary">回退上一更新並凍結</button><p class="muted">只更新中心；固定基準與 ML 不變。任何更新先評分；缺值與偏移超過 3 MAD 不更新。非 TTT，無梯度訓練。</p></section>
-<section class="panel"><h2>03 / 合成事件注入</h2><button data-inject="spike">尖峰 +2 kW</button><button data-inject="drift">慢性漂移 90 筆</button><button data-inject="missing">缺值 10 筆</button><button id="reset" class="secondary">清除事件 / 全部重設</button><small>從目前游標開始注入；只作用於測試區間。標籤僅用於合成評估，不餵給模型。</small></section></aside><div>
-<div id="status" role="status">載入中…</div><div class="cards"><div class="stat">固定基準警報筆數<b id="fixed">—</b></div><div class="stat">校正基準警報筆數<b id="adaptive">—</b></div><div class="stat">合成事件偵測覆蓋率<b id="recall">—</b></div></div>
-<section class="panel"><div class="row"><h2 style="margin:0">訊號回放</h2><button id="play">播放</button><button id="step" class="secondary">逐筆</button><select id="speed" style="width:100px"><option value="1">1×</option><option value="10">10×</option><option value="50">50×</option></select><select id="channel" style="width:130px"><option value="0">功率 kW</option><option value="1">電壓 V</option><option value="2">電流 A</option></select><span id="position"></span></div><input id="seek" type="range" style="width:100%" min="180" max="1439" value="180"><svg id="signal" class="chart" role="img" aria-label="時序訊號與合成事件圖"></svg><div class="legend">青：資料　黃：合成注入　紅：警報　白色直線：選取事件 ｜ 視窗顯示最近 240 筆</div><svg id="scores" class="chart" role="img" aria-label="固定與校正異常分數"></svg><div class="legend">青：固定 MAD　黃：校正 MAD　紫：IsolationForest（×10）　紅：校正中心相對不可變基準的長期偏移　虛線：MAD 門檻 4</div></section>
-<section class="panel"><h2>事件列表 / 點選定位</h2><p class="muted">原始資料無故障真值；背景警報不是已知 false positives。合成覆蓋率以注入筆數計算，包含缺值品質警報；原本就會警報的注入筆次也計入，不能歸因為注入偵測成功。</p><div class="scroll"><table><thead><tr><th>筆次</th><th>事件來源</th><th>固定 / 校正</th><th>ML</th><th>版本</th></tr></thead><tbody id="events"></tbody></table></div></section>
-<section class="panel"><div class="row"><h2>模型 / 資料 / 版本</h2><button id="export" class="secondary">匯出重現設定與模型參數</button></div><pre id="model"></pre><p class="warn">展示為一分鐘電力資料的異常提示，非軸承故障診斷。尚未連接記錄器、未在 Genio 520 實測；桌機 CPU 結果不代表裝置效能。新機通道、取樣率、頻寬與 SDK 尚待確認。</p></section></div></div></main><script src="/static/app.js"></script></html>
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Signal · 訊號監測工作區</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <svg class="icon-definitions" aria-hidden="true">
+      <defs>
+        <symbol id="i-play" viewBox="0 0 24 24">
+          <path d="m9 5 11 7-11 7z" />
+        </symbol>
+        <symbol id="i-pause" viewBox="0 0 24 24">
+          <path d="M8 5v14M16 5v14" />
+        </symbol>
+        <symbol id="i-step" viewBox="0 0 24 24">
+          <path d="m5 5 10 7-10 7zM19 5v14" />
+        </symbol>
+        <symbol id="i-reset" viewBox="0 0 24 24">
+          <path d="M4 10a8 8 0 1 1 1 7M4 4v6h6" />
+        </symbol>
+        <symbol id="i-download" viewBox="0 0 24 24">
+          <path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4" />
+        </symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24">
+          <path d="m6 9 6 6 6-6" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </symbol>
+        <symbol id="i-spike" viewBox="0 0 24 24">
+          <path d="M2 16h6l4-12 4 12h6" />
+        </symbol>
+        <symbol id="i-drift" viewBox="0 0 24 24">
+          <path d="M3 18h5l4-5 4 1 5-9" />
+        </symbol>
+        <symbol id="i-gap" viewBox="0 0 24 24">
+          <path d="M2 12h5m10 0h5M10 7v10m4-10v10" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="m5 12 4 4L19 6" />
+        </symbol>
+      </defs>
+    </svg>
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="OG Tech Signal 首頁"
+        ><span class="brand-mark" aria-hidden="true"
+          ><i></i><i></i><i></i><i></i></span
+        ><span
+          >OG TECH <span class="brand-divider">/</span>
+          <strong>Signal</strong></span
+        ></a
+      ><span class="header-context">訊號監測工作區</span
+      ><span class="environment"
+        ><span class="status-dot"></span>CPU 分析 · Demo</span
+      >
+    </header>
+    <main class="workspace">
+      <section class="page-heading">
+        <div>
+          <div class="eyebrow">ADAPTIVE MONITORING</div>
+          <h1>時序訊號監測</h1>
+          <p>回放公開資料、測試合成事件，對照固定基準與受控校正。</p>
+        </div>
+        <ol class="workflow" aria-label="實驗步驟">
+          <li><span>1</span>選擇資料</li>
+          <li><span>2</span>建立基準</li>
+          <li><span>3</span>測試變化</li>
+        </ol>
+        <button id="export" class="button secondary" disabled>
+          <svg class="icon"><use href="#i-download" /></svg>匯出實驗
+        </button>
+      </section>
+      <details id="setup" class="setup-panel" open>
+        <summary>
+          <div class="setup-summary">
+            <span class="section-index">01</span><strong>資料與參考基準</strong
+            ><span id="setup-summary" class="subtle">三個步驟，開始監測</span>
+          </div>
+          <span class="summary-action"
+            ><span id="setup-action">設定基準</span
+            ><svg class="icon"><use href="#i-chevron" /></svg
+          ></span>
+        </summary>
+        <div class="setup-content">
+          <div class="setup-step">
+            <label class="field-label" for="source"
+              ><span>1</span> 選擇資料</label
+            ><select id="source">
+              <option value="uci">UCI 家庭用電 · 真實公開資料</option>
+              <option value="synthetic">合成三通道 · 離線測試</option>
+            </select>
+            <p class="field-hint" id="provenance">正在讀取來源…</p>
+            <details class="csv-details">
+              <summary>使用自己的 CSV</summary>
+              <label for="csv"
+                >三通道、單一設備，依列順序作為時間<input
+                  id="csv"
+                  type="file"
+                  accept=".csv"
+              /></label>
+              <p class="field-hint">
+                power_kw,voltage_v,current_a · 80–20,000 筆 · 空白為缺值
+              </p>
+            </details>
+          </div>
+          <div class="setup-step">
+            <label class="field-label" for="start"
+              ><span>2</span> 選擇參考區間</label
+            >
+            <div class="range-fields">
+              <label
+                >起點<input id="start" type="number" value="0" min="0" /></label
+              ><span>—</span
+              ><label
+                >終點，不含<input
+                  id="end"
+                  type="number"
+                  value="180"
+                  min="40" /></label
+              ><span class="range-unit">筆</span>
+            </div>
+            <p class="field-hint">
+              至少 40 筆。以你核准的工況建立固定基準；不代表來源具有健康真值。
+            </p>
+          </div>
+          <div class="setup-step setup-approval">
+            <label class="check-field"
+              ><input id="refok" type="checkbox" /><span
+                >我核准此區間作為展示參考工況</span
+              ></label
+            ><button id="build" class="button primary">
+              <svg class="icon"><use href="#i-check" /></svg
+              ><span>建立參考基準</span>
+            </button>
+            <p class="field-hint">median/MAD ＋ IsolationForest · 固定種子</p>
+          </div>
+        </div>
+      </details>
+      <div id="status" class="status-message" role="status" aria-live="polite">
+        正在載入資料…
+      </div>
+      <div class="monitor-grid">
+        <section class="signal-panel surface">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">LIVE REPLAY</div>
+              <h2>
+                訊號回放
+                <span id="preview-badge" class="badge neutral">資料預覽</span>
+              </h2>
+            </div>
+            <label class="channel-select"
+              ><span class="sr-only">顯示通道</span
+              ><select id="channel">
+                <option value="0">功率 · kW</option>
+                <option value="1">電壓 · V</option>
+                <option value="2">電流 · A</option>
+              </select></label
+            >
+          </div>
+          <div class="signal-readout">
+            <div>
+              <span id="current-value">—</span
+              ><span id="current-unit" class="unit">kW</span
+              ><span id="point-state" class="point-state">尚未建立基準</span>
+            </div>
+            <div class="timestamp">
+              <span id="current-time">—</span><small id="position">—</small>
+            </div>
+          </div>
+          <div class="plot-wrap" id="signal-wrap">
+            <svg
+              id="signal"
+              class="signal-chart"
+              role="img"
+              aria-label="訊號時序圖，顯示參考與合成區間"
+            ></svg>
+            <div id="chart-tooltip" class="chart-tooltip" hidden></div>
+          </div>
+          <div class="chart-legend">
+            <span><i class="legend-dot signal"></i>量測值</span
+            ><span
+              ><i class="legend-box reference"></i
+              ><span id="baseline-legend">參考預選區間</span></span
+            ><span><i class="legend-box injection"></i>合成事件</span
+            ><span><i class="legend-dot alert"></i>警報區間</span>
+          </div>
+          <div class="replay-controls">
+            <div class="transport">
+              <button
+                id="play"
+                class="button primary icon-button"
+                aria-label="播放"
+              >
+                <svg class="icon"><use href="#i-play" /></svg
+                ><span>播放</span></button
+              ><button
+                id="step"
+                class="button ghost icon-only"
+                aria-label="逐筆前進"
+                title="逐筆前進"
+              >
+                <svg class="icon"><use href="#i-step" /></svg></button
+              ><label
+                ><span class="sr-only">播放速度</span
+                ><select id="speed">
+                  <option value="1">1×</option>
+                  <option value="10">10×</option>
+                  <option value="50">50×</option>
+                </select></label
+              >
+            </div>
+            <input
+              id="seek"
+              type="range"
+              min="0"
+              max="1439"
+              value="180"
+              aria-label="回放時間位置"
+            /><span id="replay-progress" class="mono">00:00 / 24:00</span>
+          </div>
+        </section>
+        <aside class="control-rail">
+          <section class="injection-panel surface">
+            <div class="section-heading">
+              <h2>測試一個變化</h2>
+              <span class="badge amber">合成</span>
+            </div>
+            <p class="body-copy">從目前游標注入，觀察各方法的反應。</p>
+            <div class="injection-actions">
+              <button data-inject="spike" class="injection-button">
+                <svg class="icon"><use href="#i-spike" /></svg
+                ><span><strong>尖峰</strong><small>+2 kW · 單點</small></span
+                ><span class="action-plus">＋</span></button
+              ><button data-inject="drift" class="injection-button">
+                <svg class="icon"><use href="#i-drift" /></svg
+                ><span><strong>漂移</strong><small>漸增 · 90 筆</small></span
+                ><span class="action-plus">＋</span></button
+              ><button data-inject="missing" class="injection-button">
+                <svg class="icon"><use href="#i-gap" /></svg
+                ><span><strong>缺值</strong><small>中斷 · 10 筆</small></span
+                ><span class="action-plus">＋</span>
+              </button>
+            </div>
+            <button id="reset" class="button text-button full">
+              <svg class="icon"><use href="#i-reset" /></svg>清除實驗並重設
+            </button>
+          </section>
+          <section class="calibration-panel surface">
+            <div class="section-heading">
+              <h2>受控校正</h2>
+              <span id="calibration-state" class="badge neutral"
+                ><svg class="icon"><use href="#i-lock" /></svg>已凍結</span
+              >
+            </div>
+            <p class="body-copy">
+              固定基準始終保留。只有核准、且通過基準門檻的資料才更新中心。
+            </p>
+            <label class="check-field"
+              ><input id="approve" type="checkbox" /><span
+                >核准後續通過門檻的工況</span
+              ></label
+            ><button id="freeze" class="button secondary full">
+              <svg class="icon"><use href="#i-lock" /></svg
+              ><span>解除凍結</span></button
+            ><button id="rollback" class="button text-button full">
+              回退上一更新
+            </button>
+            <div class="calibration-facts">
+              <span
+                >目前版本
+                <strong id="current-version" class="mono">—</strong></span
+              ><span
+                >長期偏移
+                <strong id="current-shift" class="mono">—</strong></span
+              >
+            </div>
+            <small id="calibration-hint"
+              >建立基準後可操作。所有評分先於更新。</small
+            >
+          </section>
+        </aside>
+        <section class="comparison-panel surface">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">BASELINE COMPARISON</div>
+              <h2>同一訊號，兩個參照</h2>
+            </div>
+            <span class="subtle">截至目前游標</span>
+          </div>
+          <div class="comparison-stats">
+            <div>
+              <span><i class="legend-dot fixed"></i>固定基準警報</span
+              ><strong id="fixed">—</strong><small>筆</small>
+            </div>
+            <div>
+              <span><i class="legend-dot adaptive"></i>校正基準警報</span
+              ><strong id="adaptive">—</strong><small>筆</small>
+            </div>
+            <div class="coverage-stat">
+              <span>合成區間警報覆蓋</span><strong id="recall">—</strong
+              ><small id="coverage-count">尚無合成事件</small>
+            </div>
+          </div>
+          <div class="plot-wrap">
+            <div id="comparison-empty" class="comparison-empty">
+              <svg class="icon"><use href="#i-lock" /></svg
+              ><strong>建立基準後，開始比較</strong>
+              <p>固定基準保留不變，受控校正只更新核准的工況。</p>
+            </div>
+            <svg
+              id="scores"
+              class="score-chart"
+              role="img"
+              aria-label="固定基準與受控校正的異常分數比較"
+            ></svg>
+          </div>
+          <div class="chart-legend" id="score-legend">
+            <span><i class="legend-dot fixed"></i>固定 MAD</span
+            ><span><i class="legend-dot adaptive"></i>校正 MAD（虛線）</span
+            ><span><i class="legend-dot shift"></i>長期偏移</span
+            ><span class="threshold-legend">— MAD 門檻 4</span
+            ><span class="ml-caption">ML 警報見事件列表</span>
+          </div>
+          <p class="interpretation">
+            警報減少不等於改善。合成覆蓋包含原本就會警報的筆次與缺值品質提示，不代表故障診斷準確率。
+          </p>
+        </section>
+        <section class="events-panel surface">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">EVENT REVIEW</div>
+              <h2>
+                值得留意的區間
+                <span id="event-count" class="count-badge">0</span>
+              </h2>
+            </div>
+            <select id="event-filter" aria-label="事件篩選">
+              <option value="all">全部事件</option>
+              <option value="synthetic">僅合成事件</option>
+              <option value="background">背景警報</option>
+            </select>
+          </div>
+          <p class="event-description">
+            連續警報合併為區間；點選可回到訊號圖。背景事件沒有故障真值。
+          </p>
+          <div class="event-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>時間 / 區間</th>
+                  <th>事件</th>
+                  <th>固定 / 校正</th>
+                  <th>ML</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="events"></tbody>
+            </table>
+            <div id="events-empty" class="empty-state">
+              <span class="empty-wave" aria-hidden="true">∿</span
+              ><strong>先建立基準，再觀察變化</strong>
+              <p>回放資料或加入合成事件，這裡會顯示需要留意的區間。</p>
+            </div>
+          </div>
+        </section>
+      </div>
+      <details class="evidence-panel">
+        <summary>
+          <span
+            ><svg class="icon"><use href="#i-check" /></svg
+            >資料來源、方法與重現資訊</span
+          ><svg class="icon"><use href="#i-chevron" /></svg>
+        </summary>
+        <div class="evidence-grid">
+          <section>
+            <h3>資料來源</h3>
+            <p id="evidence-source">—</p>
+            <p>
+              <a
+                href="https://archive.ics.uci.edu/dataset/235/individual+household+electric+power+consumption"
+                target="_blank"
+                rel="noreferrer"
+                >UCI 235 ↗</a
+              >
+              · Georges Hebrail / Alice Berard · CC BY 4.0。取前 1,440
+              分鐘、三通道；無故障真值。
+            </p>
+          </section>
+          <section>
+            <h3>可重現的方法</h3>
+            <p>
+              固定 median/MAD ＋ 64 棵 IsolationForest，seed
+              520。參考區間按時間切分 70% 訓練 / 30%
+              校準。受控校正只更新中心，非 TTT，無梯度訓練。
+            </p>
+            <p>
+              缺值用參考中位數處理並獨立標記。模型不接受合成標籤；偏移或缺值不更新。
+            </p>
+          </section>
+          <section>
+            <h3>展示範圍</h3>
+            <p>
+              單一來源／設備，一分鐘電力資料。尚未連接記錄器，未在 Genio 520
+              實測；非軸承故障診斷。
+            </p>
+            <p id="version-info">建立基準後顯示模型版本。</p>
+          </section>
+        </div>
+        <details class="technical-details">
+          <summary>完整模型參數（全資料重播結尾）</summary>
+          <pre id="model">尚未建立模型</pre>
+        </details>
+      </details>
+      <footer class="workspace-footer">
+        <span>OG TECH · Signal monitoring demo</span
+        ><span>公開資料 × 可重現 CPU 方法 × 明確合成測試</span>
+      </footer>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

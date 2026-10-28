@@ -9,6 +9,7 @@
 !app/static/
 !app/static/index.html
 !app/static/app.js
+!app/static/app.css
 !data/
 !data/uci_slice.json
 !data/ATTRIBUTION.md

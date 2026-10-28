@@ -1,0 +1,74 @@
+[
+  {
+    "width": 1440,
+    "errors": [],
+    "overflow": false,
+    "uci": true,
+    "referenceGate": true,
+    "replay": true,
+    "fastForward": true,
+    "step": true,
+    "injections": [
+      "spike",
+      "drift",
+      "missing"
+    ],
+    "calibration": true,
+    "freezeRollback": true,
+    "groupedEvents": true,
+    "keyboardEventSelection": true,
+    "channelUnits": true,
+    "export": true,
+    "resetClearsApproval": true,
+    "sourceChange": true,
+    "referenceChangeInvalidatesModel": true
+  },
+  {
+    "width": 768,
+    "errors": [],
+    "overflow": false,
+    "uci": true,
+    "referenceGate": true,
+    "replay": true,
+    "fastForward": true,
+    "step": true,
+    "injections": [
+      "spike",
+      "drift",
+      "missing"
+    ],
+    "calibration": true,
+    "freezeRollback": true,
+    "groupedEvents": true,
+    "keyboardEventSelection": true,
+    "channelUnits": true,
+    "export": true,
+    "resetClearsApproval": true,
+    "sourceChange": true,
+    "referenceChangeInvalidatesModel": true
+  },
+  {
+    "width": 390,
+    "errors": [],
+    "overflow": false,
+    "uci": true,
+    "referenceGate": true,
+    "replay": true,
+    "fastForward": true,
+    "step": true,
+    "injections": [
+      "spike",
+      "drift",
+      "missing"
+    ],
+    "calibration": true,
+    "freezeRollback": true,
+    "groupedEvents": true,
+    "keyboardEventSelection": true,
+    "channelUnits": true,
+    "export": true,
+    "resetClearsApproval": true,
+    "sourceChange": true,
+    "referenceChangeInvalidatesModel": true
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "csv": true,
+  "csvUnknownTime": true,
+  "missingReferenceError": true,
+  "errorClearsOldModel": true,
+  "hover": true,
+  "busyDisablesActions": true,
+  "sourceChangeAbortsStaleRun": true,
+  "errors": []
+}

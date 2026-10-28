@@ -4,8 +4,8 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
 tracked=subprocess.check_output(['git','ls-files','-z'],cwd=root).decode().split('\0')
-exact={'Dockerfile','.dockerignore','compose.yaml','compose.linux-amd64.yaml','requirements.lock','requirements.txt','requirements-dev.txt','LICENSE','README.md','data/uci_slice.json','data/ATTRIBUTION.md','docs/MIGRATION.md','docs/benchmark.json','docs/linux-amd64-dependencies.json'}
-files=sorted(f for f in tracked if f and (f in exact or f.startswith(('app/','tests/')) or f in {'scripts/download_uci.py','scripts/benchmark.py','scripts/package_migration.py'}))
+exact={'.gitignore','Dockerfile','.dockerignore','compose.yaml','compose.linux-amd64.yaml','requirements.lock','requirements.txt','requirements-dev.txt','LICENSE','README.md','data/uci_slice.json','data/ATTRIBUTION.md','docs/MIGRATION.md','docs/benchmark.json','docs/linux-amd64-dependencies.json','docs/VALIDATION.md','docs/UI-REDESIGN.md','docs/ui-1440.png','docs/ui-390.png','docs/ui-qa.json','docs/ui-edge-qa.json','docs/ui-visual-qa.json'}
+files=sorted(f for f in tracked if f and (f in exact or f.startswith(('app/','tests/','.github/workflows/')) or f in {'scripts/download_uci.py','scripts/benchmark.py','scripts/package_migration.py','scripts/ui-test.cjs','scripts/ui-extended.cjs','scripts/ui-edgecases.cjs'}))
 assert {'app/main.py','app/core.py','data/uci_slice.json','Dockerfile','compose.linux-amd64.yaml'}<=set(files)
 for f in files:
     p=root/f
