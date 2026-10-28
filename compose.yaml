@@ -1,0 +1,7 @@
+services:
+  signal:
+    build: .
+    ports: ["127.0.0.1:8011:8011"]
+    cpus: 2
+    mem_limit: 1g
+    restart: unless-stopped

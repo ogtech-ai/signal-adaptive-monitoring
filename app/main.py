@@ -1,0 +1,48 @@
+import csv, io, json, platform
+from pathlib import Path
+import sklearn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from app.core import Monitor, synthetic, validate
+app=FastAPI(title='Signal Adaptive Monitoring')
+app.mount('/static',StaticFiles(directory='app/static'),name='static')
+@app.get('/')
+def index(): return FileResponse('app/static/index.html')
+@app.get('/api/data')
+def data(source: str='synthetic'):
+    if source=='uci':
+        p=Path('data/uci_slice.json')
+        if not p.exists(): raise HTTPException(404,'UCI 尚未下載；請執行 scripts/download_uci.py')
+        return json.loads(p.read_text())
+    return dict(rows=synthetic(),source='全合成 / seed 520 / 1 分鐘',channels=['功率 kW','電壓 V','電流 A'],device='synthetic-01')
+class Run(BaseModel):
+    rows:list
+    start:int=0
+    end:int=180
+    approve:bool=False
+    freeze:bool=True
+    rollback_at:int=-1
+    actions:list[dict]=[]
+@app.post('/api/run')
+def run(r:Run):
+    try:
+        model=Monitor(r.rows,r.start,r.end); model.frozen=False if r.rollback_at>=0 else r.freeze
+        result=[]
+        approved=r.approve
+        actions={}
+        for action in r.actions:
+            at=int(action.get("at",-1))
+            if at<r.end or at>=len(r.rows): raise ValueError("控制事件必須在測試區間")
+            actions.setdefault(at,[]).append(action)
+        for i,row in enumerate(r.rows):
+            if i<r.end: result.append(None); continue
+            for action in actions.get(i,[]):
+                if "frozen" in action: model.frozen=bool(action["frozen"])
+                if "approved" in action: approved=bool(action["approved"])
+                if action.get("rollback"): model.rollback()
+            if i==r.rollback_at:model.rollback()
+            result.append(model.score(row,approved))
+        return dict(scores=result,model=dict(name='median/MAD + IsolationForest',seed=520,trees=64,reference=[r.start,r.end],center=model.center.tolist(),baseline=model.base.tolist(),scale=model.scale.tolist(),ml_threshold=model.ml_threshold,version=model.version,sklearn=sklearn.__version__,python=platform.python_version(),adaptation='受控基準校正；非 TTT',scope='單一來源/設備；未跨設備驗證'))
+    except (ValueError,TypeError) as e: raise HTTPException(422,str(e))

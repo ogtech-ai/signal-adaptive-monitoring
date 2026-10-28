@@ -1,0 +1,32 @@
+name: Manual VM deployment preflight (no deployment)
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Authorized GCP project ID
+        required: true
+      vm:
+        description: Authorized existing CPU VM name
+        required: true
+      zone:
+        description: Existing VM zone
+        required: true
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate identifiers; no cloud credentials or mutations
+        env:
+          PROJECT: ${{ inputs.project }}
+          VM: ${{ inputs.vm }}
+          ZONE: ${{ inputs.zone }}
+        run: |
+          python - <<'PY'
+          import os,re
+          for key in ('PROJECT','VM','ZONE'):
+              assert re.fullmatch(r'[a-z][a-z0-9-]{2,62}',os.environ[key]), key
+          print('Identifiers validated. Deployment intentionally requires separately approved VM configuration and identity.')
+          PY

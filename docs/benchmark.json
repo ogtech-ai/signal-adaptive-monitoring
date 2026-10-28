@@ -1,0 +1,65 @@
+{
+  "cpu": "arm",
+  "platform": "macOS-14.4-arm64-arm-64bit",
+  "python": "3.12.8",
+  "sklearn": "1.9.1",
+  "scope": "single-device minute samples; not G520; point coverage of synthetic injections, not fault diagnosis",
+  "sources": [
+    {
+      "source": "synthetic",
+      "rows": 1440,
+      "reference": [
+        0,
+        180
+      ],
+      "seconds": 2.75,
+      "background_alert_points_no_fault_truth": 2,
+      "synthetic_point_coverage": {
+        "spike": {
+          "fixed": 1.0,
+          "adaptive": 1.0,
+          "ml_alert": 0.0
+        },
+        "drift": {
+          "fixed": 0.5777777777777777,
+          "adaptive": 0.5555555555555556,
+          "ml_alert": 0.011111111111111112
+        },
+        "missing": {
+          "fixed": 1.0,
+          "adaptive": 1.0,
+          "ml_alert": 1.0
+        }
+      },
+      "coverage_definition": "MAD threshold 4 or ML threshold; missing data quality alerts count as detected for each column; no causal attribution to injection"
+    },
+    {
+      "source": "uci235",
+      "rows": 1440,
+      "reference": [
+        0,
+        180
+      ],
+      "seconds": 2.912,
+      "background_alert_points_no_fault_truth": 974,
+      "synthetic_point_coverage": {
+        "spike": {
+          "fixed": 1.0,
+          "adaptive": 1.0,
+          "ml_alert": 1.0
+        },
+        "drift": {
+          "fixed": 1.0,
+          "adaptive": 1.0,
+          "ml_alert": 1.0
+        },
+        "missing": {
+          "fixed": 1.0,
+          "adaptive": 1.0,
+          "ml_alert": 1.0
+        }
+      },
+      "coverage_definition": "MAD threshold 4 or ML threshold; missing data quality alerts count as detected for each column; no causal attribution to injection"
+    }
+  ]
+}
