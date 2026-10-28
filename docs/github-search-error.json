@@ -1,0 +1,29 @@
+{
+  "action": "search_repositories",
+  "arguments": {
+    "link_id": "link_6ae221026dd88191b30e65d10dc75dde",
+    "org": "ogtech-ai",
+    "query": "signal-adaptive-monitoring",
+    "per_page": 10
+  },
+  "installation_context": "176246013 visible per parent verification; not sent as a search argument",
+  "response": {
+    "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"The listed users and repositories cannot be searched either because the resources do not exist or you do not have permission to view them.\",\"resource\":\"Search\",\"field\":\"q\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/v3/search/\",\"status\":\"422\"}",
+    "error_code": "INVALID_ARGUMENT",
+    "error_data": {
+      "message": "Validation Failed",
+      "errors": [
+        {
+          "message": "The listed users and repositories cannot be searched either because the resources do not exist or you do not have permission to view them.",
+          "resource": "Search",
+          "field": "q",
+          "code": "invalid"
+        }
+      ],
+      "documentation_url": "https://docs.github.com/v3/search/",
+      "status": "422"
+    },
+    "isError": true
+  },
+  "interpretation": "Search failed. This does not establish organization nonexistence or installation invisibility. No repository created or pushed; parent coordinates publication."
+}

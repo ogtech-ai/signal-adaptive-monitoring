@@ -13,6 +13,6 @@
 
 ## 發布狀態
 
-本機獨立 Git repo 已建立。公司 GitHub 連接器以指定 link_id 查詢 ogtech-ai/signal-adaptive-monitoring 時回傳 HTTP 422：「組織/資源不存在或無權查看」，無法完成查重；沒有建立遠端 repo 或 push。gh 現有登入不含有效公司帳號，不使用個人 repo。需父端協調合法公司寫入通路後再發布；此為權限阻礙，非已成功發布。
+本機獨立 Git repo 已建立。公司 GitHub 連接器以指定 link_id 查詢 ogtech-ai/signal-adaptive-monitoring 時回傳 HTTP 422（完整錯誤與實際參數見 github-search-error.json），該次搜尋未能完成查重；這不能證明組織不存在，父端已確認 installation 176246013 可見；沒有建立遠端 repo 或 push。gh 現有登入不含有效公司帳號，不使用個人 repo。需父端協調合法公司寫入通路後再發布；此為搜尋操作失敗、發布待父端協調，非已成功發布。
 
 GCP project/VM/zone/規格與部署授權未提供。preflight workflow 只驗證字串，不碰雲端。未建立資源、IAM、金鑰或公開端點。
