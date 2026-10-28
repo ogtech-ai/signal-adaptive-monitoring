@@ -1,6 +1,14 @@
-.venv
-.git
-data/cache
-node_modules
-__pycache__
-.pytest_cache
+# Exact runtime context allowlist: exclude local delivery, caches and secrets.
+**
+!Dockerfile
+!requirements.lock
+!LICENSE
+!app/
+!app/main.py
+!app/core.py
+!app/static/
+!app/static/index.html
+!app/static/app.js
+!data/
+!data/uci_slice.json
+!data/ATTRIBUTION.md
