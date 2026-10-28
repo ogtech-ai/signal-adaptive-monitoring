@@ -37,7 +37,7 @@ requirements.lock 為本輪 Python 環境的精確版本；Linux CI 與 Docker �
 5. 凍結停止後續更新；回退撤銷最近一個中心更新並凍結。所有控制保留游標時間點，CPU 重播同一條控制時間軸。回到過去新增控制會重播實驗，這是實驗台，不是實體設備的即時控制。
 6. 匯出 JSON 含資料、合成標記、控制時間軸、版本、基準參數與重建種子。清除事件會還原資料、清空模型與評分；重新建模會清空控制時間軸。
 
-合成覆蓋率是已回放注入筆數中，任一偵測器或缺值品質警報觸發的比例。它不是事件級診斷準確率；警報筆數更少也不代表改善。詳細分模型合成指標見 docs/benchmark.json。UCI 背景警報無故障真值，不能稱為真實 false positive。
+合成覆蓋率是已回放注入筆數中，任一偵測器或缺值品質警報觸發的比例。原本即會觸發警報的注入筆次也計入，因此無法歸因為注入偵測成功。它不是事件級診斷準確率；警報筆數更少也不代表改善。詳細分模型合成指標見 docs/benchmark.json。UCI 背景警報無故障真值，不能稱為真實 false positive。
 
 ## 模型與重用
 
@@ -60,3 +60,5 @@ requirements.lock 為本輪 Python 環境的精確版本；Linux CI 與 Docker �
 未來目標是 **GCP CPU-only Demo VM**，不是 Cloud Run。現階段只有手動 `workflow_dispatch` preflight，驗證識別字後結束；不登入 GCP、不部署、不建資源、不改 IAM／防火牆、不建長期金鑰。需先取得 project、VM、zone、規格、網路與部署授權；再由既有核准身分部署至指定 VM。Compose 只綁本機，對外展示應由核准的反向代理／TLS／存取控制提供網址。
 
 TypeSafe（Jev）僅列未來外部文字／結構化決策候選；未呼叫服務，也沒有可下載權重或 G520 離線部署證據。
+
+開源套件官方來源：[scikit-learn](https://github.com/scikit-learn/scikit-learn)（BSD 3-Clause）、[NumPy](https://github.com/numpy/numpy)（BSD 3-Clause）、[FastAPI](https://github.com/fastapi/fastapi)（MIT）、[Uvicorn](https://github.com/encode/uvicorn)（BSD 3-Clause）。上游套件授權隨安裝套件保留，本 repo MIT 不取代資料與上游授權。

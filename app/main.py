@@ -1,4 +1,4 @@
-import csv, io, json, platform
+import csv, io, json, platform, hashlib
 from pathlib import Path
 import sklearn
 from fastapi import FastAPI, HTTPException
@@ -44,5 +44,5 @@ def run(r:Run):
                 if action.get("rollback"): model.rollback()
             if i==r.rollback_at:model.rollback()
             result.append(model.score(row,approved))
-        return dict(scores=result,model=dict(name='median/MAD + IsolationForest',seed=520,trees=64,reference=[r.start,r.end],center=model.center.tolist(),baseline=model.base.tolist(),scale=model.scale.tolist(),ml_threshold=model.ml_threshold,version=model.version,sklearn=sklearn.__version__,python=platform.python_version(),adaptation='受控基準校正；非 TTT',scope='單一來源/設備；未跨設備驗證'))
+        return dict(scores=result,model=dict(name='median/MAD + IsolationForest',implementation='1.0.0',reference_sha256=hashlib.sha256(json.dumps(r.rows[r.start:r.end],sort_keys=True).encode()).hexdigest(),seed=520,trees=64,reference=[r.start,r.end],center=model.center.tolist(),baseline=model.base.tolist(),scale=model.scale.tolist(),ml_threshold=model.ml_threshold,version=model.version,sklearn=sklearn.__version__,python=platform.python_version(),adaptation='受控基準校正；非 TTT',scope='單一來源/設備；未跨設備驗證'))
     except (ValueError,TypeError) as e: raise HTTPException(422,str(e))

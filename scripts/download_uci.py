@@ -3,7 +3,9 @@ from pathlib import Path
 import urllib.request, zipfile, io, csv, json, hashlib, ssl, certifi
 ROOT=Path(__file__).resolve().parents[1]; cache=ROOT/'data/cache';cache.mkdir(parents=True,exist_ok=True)
 p=cache/'uci235.zip'
-if not p.exists(): p.write_bytes(urllib.request.urlopen('https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip', context=ssl.create_default_context(cafile=certifi.where())).read())
+if not p.exists(): p.write_bytes(urllib.request.urlopen('https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip', timeout=60, context=ssl.create_default_context(cafile=certifi.where())).read())
+digest=hashlib.sha256(p.read_bytes()).hexdigest()
+if digest!='9f84b46ade8a2d8e1286ec4b2b6c2987a45a755c59f263be3b3b3d10dfbda3ff': raise ValueError('Official archive checksum changed; inspect upstream before using new data')
 z=zipfile.ZipFile(p)
 with z.open('household_power_consumption.txt') as f:
     reader=csv.DictReader(io.TextIOWrapper(f),delimiter=';'); rows=[];times=[]
