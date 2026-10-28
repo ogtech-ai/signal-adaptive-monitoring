@@ -2651,3 +2651,234 @@ svg text {
     line-height: 1.8;
   }
 }
+/* First-use QA: readable states, explicit units and results beside mobile actions. */
+.injection-scope {
+  font-size: 12px;
+  line-height: 1.75;
+  color: #596a82;
+  margin: 12px 0 0;
+}
+.injection-button small {
+  line-height: 1.75;
+}
+.nearby-feedback {
+  display: none;
+}
+.events-panel th small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5d6e86;
+  margin-top: 3px;
+  font-weight: 400;
+}
+.comparison-panel {
+  scroll-margin-top: 20px;
+}
+.badge,
+.point-state,
+.signal-readout .point-state {
+  font-size: 12px !important;
+  color: #52647d;
+}
+.badge.amber,
+.point-state.synthetic,
+.point-state.alert {
+  color: #8d5d15;
+}
+.badge.teal {
+  color: #166e62;
+}
+.chart-legend,
+.comparison-panel .chart-legend,
+.coverage-stat small,
+.comparison-stats > div > span,
+.ml-caption {
+  font-size: 12px !important;
+  color: #576a84;
+}
+.interpretation {
+  font-size: 13px;
+  line-height: 1.85;
+  color: #53647d;
+}
+.status-message {
+  font-size: 13px;
+}
+.injection-button small {
+  font-size: 12px;
+  color: #5e6f88;
+}
+.events-panel td.mono {
+  font-size: 13px;
+  color: #52647d;
+}
+.events-panel th {
+  font-size: 12px;
+  color: #52647d;
+}
+svg text {
+  font-size: 12px;
+  fill: #5f718c;
+}
+@media (max-width: 600px) {
+  .setup-panel > summary {
+    min-height: 60px;
+  }
+  .signal-readout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .signal-readout .timestamp {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    font-size: 12px;
+  }
+  .signal-readout .timestamp small {
+    font-size: 12px;
+    margin-top: 0;
+  }
+  .point-state {
+    font-size: 12px !important;
+  }
+  .badge {
+    padding: 5px 7px;
+  }
+  .chart-legend {
+    gap: 12px;
+    line-height: 1.8;
+  }
+  .comparison-stats {
+    grid-template-columns: 1fr 1fr 1.12fr;
+    gap: 9px;
+  }
+  .comparison-stats small,
+  .coverage-stat small {
+    font-size: 12px !important;
+    line-height: 1.7;
+  }
+  .comparison-stats > div > span {
+    line-height: 1.65;
+    min-height: 40px;
+  }
+  .events-panel th {
+    font-size: 12px;
+    padding: 10px 4px;
+    line-height: 1.6;
+  }
+  .events-panel th small {
+    font-size: 12px;
+  }
+  .events-panel td.mono {
+    font-size: 12px;
+    letter-spacing: -0.07em;
+  }
+  .event-type,
+  td strong,
+  .ml-state {
+    font-size: 12px;
+  }
+  .event-description {
+    font-size: 13px;
+    color: #53647d;
+  }
+  .injection-button {
+    min-height: 132px;
+  }
+  .injection-button small {
+    font-size: 12px;
+    letter-spacing: -0.04em;
+    line-height: 1.75;
+  }
+  .injection-scope {
+    font-size: 13px;
+  }
+  .nearby-feedback {
+    display: block;
+    background: #f5f8ff;
+    border: 1px solid #e1e8f5;
+    border-radius: 8px;
+    margin: 14px 0 5px;
+    padding: 12px;
+  }
+  .nearby-feedback strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #435d88;
+  }
+  .nearby-feedback p {
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 6px 0 2px;
+    color: #425a7b;
+  }
+  .nearby-feedback .button {
+    min-height: 44px;
+    padding: 8px 0;
+    color: #315cdb;
+    font-size: 13px;
+  }
+  .calibration-panel .nearby-feedback {
+    margin-top: 9px;
+  }
+  .channel-select select {
+    font-size: 12px;
+  }
+  .interpretation {
+    font-size: 13px !important;
+  }
+  .calibration-panel > small {
+    font-size: 12px;
+    color: #53647d;
+  }
+  .setup-summary .subtle {
+    font-size: 12px;
+  }
+  .summary-action {
+    font-size: 12px;
+  }
+  .events-panel .section-heading {
+    flex-wrap: wrap;
+  }
+  .events-panel .section-heading select {
+    font-size: 12px;
+    width: 108px;
+  }
+  .empty-state p {
+    font-size: 12px;
+  }
+  .empty-state strong {
+    font-size: 13px;
+  }
+}
+.badge.neutral {
+  background: #edf1f7;
+  color: #455b76;
+}
+.ml-state.active {
+  background: #f0ecf7;
+  color: #6d558b;
+}
+.ml-state {
+  color: #5b6c83;
+}
+.count-badge {
+  font-size: 12px;
+  color: #4f6482;
+}
+.point-state,
+.signal-readout .point-state {
+  line-height: 1.5;
+}
+.calibration-facts {
+  font-size: 12px;
+}
+.calibration-facts strong {
+  font-size: 12px;
+}
+#coverage-count {
+  color: #53647d;
+}

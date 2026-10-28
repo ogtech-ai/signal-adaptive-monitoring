@@ -20,9 +20,9 @@ python3 -m venv .venv
 
 ## 操作流程
 
-1. **資料與參考基準**：預設載入 UCI 公開用電資料；也可選離線合成訊號，或匯入單一設備 CSV。檢查參考區間，核准展示工況後建立基準。這是操作員的參考選擇，不代表資料具有健康真值。建模後設定列收合；手機初始先呈現訊號預覽，點「核准參考」展開設定。
+1. **資料與參考基準**：預設載入 UCI 公開用電資料；也可選離線合成訊號，或匯入單一設備 CSV。檢查參考區間，核准展示工況後建立基準。這是操作員的參考選擇，不代表資料具有健康真值。首次在桌機與手機均直接展開設定，可核准後建立；建模後設定列才收合。
 2. **訊號回放**：播放／暫停、10×／50× 快轉、逐筆或拖曳時間軸。圖表顯示目前及前 239 筆，可切換功率／電壓／電流。滑過圖表檢視真實數值；固定基準 ±4 MAD 為統計門檻，不是物理安全界線。
-3. **測試變化**：從游標注入單點尖峰、90 筆漂移或 10 筆缺值。amber 曲線／區帶與事件列標明「合成」，不冒充來源量測或已知設備故障。
+3. **測試變化**：從游標注入單點同步尖峰（功率 +2 kW、電流 +8.7 A）、90 筆漂移或 10 筆缺值。amber 曲線／區帶與事件列標明「合成」，不冒充來源量測或已知設備故障。
 4. **受控校正**：核准後續工況、解除凍結，再觀察固定／校正分數。只接受不缺值、相對固定與校正中心均 <3 MAD 的樣本；固定基準、尺度與 ML 不變。凍結停止後續更新；回退撤銷上一個中心更新並凍結。操作記在游標時間點，修改過去會重播該實驗的控制時間軸。
 5. **事件與匯出**：連續警報聚合為區間，可篩選合成／背景事件，點選或按 Enter 定位圖表。匯出 JSON 包含資料、合成標記、控制時間軸、模型參數、版本與種子，可重建實驗；匯出明示完整資料重播結尾模型與目前游標版本的不同範圍。清除實驗保留來源資料並清空模型、事件與核准；切換來源或修改參考區間也須重新核准。
 
@@ -55,6 +55,8 @@ python3 -m venv .venv
 # 另安裝 Playwright；使用已安裝 Chrome，先啟動 API
 PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-test.cjs
 PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-edgecases.cjs
+PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-mobile-first.cjs
+PLAYWRIGHT_MODULE=/tmp/signal-ui/node_modules/playwright node scripts/ui-readability.cjs
 ```
 
 可用 `DEMO_URL`、`CHROME_PATH`、`QA_OUTPUT` 指定本機測試目標、Chrome 與輸出目錄。UI 測試涵蓋 1440／768／390px 全流程；另驗 CSV、錯誤空態、hover、分析時禁用控制及來源切換取消過期回應。核心測試涵蓋凍結／回退、先評分後更新、無標籤介面、缺值與異常不更新、未來資料不影響過去、不可變基準、資料驗證及 API 重現。

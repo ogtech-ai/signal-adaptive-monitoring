@@ -234,7 +234,9 @@
             <div class="injection-actions">
               <button data-inject="spike" class="injection-button">
                 <svg class="icon"><use href="#i-spike" /></svg
-                ><span><strong>尖峰</strong><small>+2 kW · 單點</small></span
+                ><span
+                  ><strong>尖峰</strong
+                  ><small>功率 +2 kW<br />電流 +8.7 A</small></span
                 ><span class="action-plus">＋</span></button
               ><button data-inject="drift" class="injection-button">
                 <svg class="icon"><use href="#i-drift" /></svg
@@ -244,6 +246,16 @@
                 <svg class="icon"><use href="#i-gap" /></svg
                 ><span><strong>缺值</strong><small>中斷 · 10 筆</small></span
                 ><span class="action-plus">＋</span>
+              </button>
+            </div>
+            <p class="injection-scope">
+              尖峰同步修改功率、電流；電壓保留來源值。
+            </p>
+            <div id="injection-feedback" class="nearby-feedback" hidden>
+              <strong id="injection-feedback-title">目前注入結果</strong>
+              <p id="injection-feedback-scores"></p>
+              <button class="button text-button" data-show-results>
+                查看比較與事件 <span aria-hidden="true">↓</span>
               </button>
             </div>
             <button id="reset" class="button text-button full">
@@ -270,6 +282,13 @@
             ><button id="rollback" class="button text-button full">
               回退上一更新
             </button>
+            <div id="calibration-feedback" class="nearby-feedback" hidden>
+              <strong>目前游標偏離分數</strong>
+              <p id="calibration-feedback-scores"></p>
+              <button class="button text-button" data-show-results>
+                查看完整比較 <span aria-hidden="true">↓</span>
+              </button>
+            </div>
             <div class="calibration-facts">
               <span
                 >目前版本
@@ -284,7 +303,12 @@
             >
           </section>
         </aside>
-        <section class="comparison-panel surface">
+        <section
+          id="comparison"
+          class="comparison-panel surface"
+          tabindex="-1"
+          aria-label="固定與校正結果比較"
+        >
           <div class="section-heading">
             <div>
               <div class="eyebrow">BASELINE COMPARISON</div>
@@ -354,7 +378,7 @@
                 <tr>
                   <th>時間 / 區間</th>
                   <th>事件</th>
-                  <th>固定 / 校正</th>
+                  <th>偏離分數<small>固定 / 校正 · MAD</small></th>
                   <th>ML</th>
                   <th></th>
                 </tr>

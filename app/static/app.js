@@ -26,7 +26,8 @@ let timer = null,
   request = 0,
   actions = [],
   runAbort = null,
-  sourceRequest = 0;
+  sourceRequest = 0,
+  lastInjection = null;
 const channels = [
   { unit: "kW", name: "功率" },
   { unit: "V", name: "電壓" },
@@ -70,6 +71,7 @@ function setBusy(value) {
     .querySelector(".monitor-grid")
     .setAttribute("aria-busy", String(value));
   updateControls();
+  drawNearbyResults();
 }
 function updateControls() {
   $("setup-action").textContent = ready ? "調整設定" : "核准參考";
@@ -155,7 +157,7 @@ async function load() {
       original.length.toLocaleString() +
       " 筆 · 1 分鐘 / 筆 · 三通道";
     $("evidence-source").textContent = data.source + " · " + data.device;
-    $("setup").open = window.innerWidth > 600;
+    $("setup").open = true;
     status("資料已就緒。選擇並核准參考區間，開始建立基準。");
   } catch (error) {
     if (id === sourceRequest) {
@@ -178,6 +180,7 @@ function reset(showMessage = true) {
   if (runAbort) runAbort.abort();
   rows = structuredClone(original);
   labels = {};
+  lastInjection = null;
   scores = [];
   model = {};
   ready = false;
@@ -195,10 +198,13 @@ function reset(showMessage = true) {
   $("setup-summary").textContent = rows.length
     ? `${meta.device === "UCI-household-01" ? "UCI 公開用電" : meta.device === "synthetic-01" ? "合成三通道" : "CSV"} · 參考 ${Number($("start").value)}–${end() - 1} · 待核准`
     : "三個步驟，開始監測";
-  $("setup").open = showMessage || window.innerWidth > 600;
+  $("setup").open = true;
   draw();
-  if (showMessage)
+  if (showMessage) {
     status("實驗已重設。原始資料保留，合成事件與校正歷史已清除。");
+    $("setup").scrollIntoView({ behavior: "auto", block: "start" });
+    $("refok").focus({ preventScroll: true });
+  }
 }
 async function compute(rewind = false) {
   pause();
@@ -567,9 +573,38 @@ function draw() {
     4,
   );
   drawEvents();
+  drawNearbyResults();
   updateControls();
 }
+function drawNearbyResults() {
+  const score = scores[cursor];
+  $("injection-feedback").hidden = !ready || !lastInjection;
+  $("calibration-feedback").hidden = !ready;
+  const text = busy
+    ? "CPU 分析中，結果就緒後會更新。"
+    : score
+      ? `第 ${cursor} 筆：固定 ${score.fixed.toFixed(1)} MAD ／ 校正 ${score.adaptive.toFixed(1)} MAD${score.missing ? "；缺值品質警報，分數為參考補值後計算" : ""}`
+      : "尚未回放此區間";
+  $("calibration-feedback-scores").textContent = text;
+  $("injection-feedback-scores").textContent = text;
+  if (lastInjection)
+    $("injection-feedback-title").textContent =
+      `合成${{ spike: "同步尖峰", drift: "漂移", missing: "缺值" }[lastInjection.type]} · #${lastInjection.start}${lastInjection.stop > lastInjection.start ? "–" + lastInjection.stop : ""}`;
+}
+document.querySelectorAll("[data-show-results]").forEach(
+  (button) =>
+    (button.onclick = () => {
+      $("comparison").scrollIntoView({
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+      $("comparison").focus({ preventScroll: true });
+    }),
+);
 function addAction(action) {
+  if (busy || !ready) return false;
   actions = actions.filter((a) => a.at <= cursor);
   actions.push({ at: cursor, ...action });
   return compute();
@@ -595,8 +630,12 @@ for (const id of ["start", "end"])
     status("參考區間已變更。請重新核准並建立基準。");
   };
 $("build").onclick = async () => {
+  if (busy) return;
   actions = [];
-  await compute(true);
+  if (await compute(true)) {
+    $("play").focus({ preventScroll: true });
+    $("signal-wrap").scrollIntoView({ behavior: "auto", block: "center" });
+  }
 };
 $("reset").onclick = () => reset();
 $("play").onclick = () => {
@@ -635,11 +674,18 @@ $("seek").oninput = (event) => {
 };
 $("channel").onchange = draw;
 $("event-filter").onchange = drawEvents;
-$("freeze").onclick = () => addAction({ frozen: !stateAt(cursor).frozen });
-$("approve").onchange = () => {
-  if (ready) addAction({ approved: $("approve").checked });
+$("freeze").onclick = async () => {
+  if (await addAction({ frozen: !stateAt(cursor).frozen }))
+    $("freeze").focus({ preventScroll: true });
 };
-$("rollback").onclick = () => addAction({ rollback: true });
+$("approve").onchange = async () => {
+  if (ready && (await addAction({ approved: $("approve").checked })))
+    $("approve").focus({ preventScroll: true });
+};
+$("rollback").onclick = async () => {
+  if (await addAction({ rollback: true }))
+    $("rollback").focus({ preventScroll: true });
+};
 $("events").onclick = (event) =>
   locateEvent(event.target.closest("tr[data-i]"));
 $("events").onkeydown = (event) => {
@@ -668,10 +714,16 @@ document.querySelectorAll("[data-inject]").forEach(
             (rows[i][2] ?? 0) + (type === "spike" ? 8.7 : (6.5 * j) / 89);
         }
       }
+      lastInjection = {
+        type,
+        start,
+        stop: Math.min(rows.length - 1, start + count - 1),
+      };
       if (await compute()) {
+        button.focus({ preventScroll: true });
         const until = Math.min(rows.length - 1, start + count - 1);
         status(
-          `已注入${{ spike: "合成尖峰", drift: "合成漂移", missing: "合成缺值" }[type]}：第 ${start}${until > start ? "–" + until : ""} 筆。可播放觀察後續反應。`,
+          `已注入${{ spike: "合成尖峰", drift: "合成漂移", missing: "合成缺值" }[type]}：第 ${start}${until > start ? "–" + until : ""} 筆。${type === "spike" ? "功率 +2 kW、電流 +8.7 A 同步尖峰；" : ""}可播放觀察後續反應。`,
           "success",
         );
       }
