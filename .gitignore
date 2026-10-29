@@ -9,3 +9,15 @@ delivery/
 
 .env
 .env.*
+
+# Local secrets, credentials and generated reports
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store
+output/
+reports/
+uploads/
